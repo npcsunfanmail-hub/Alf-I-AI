@@ -387,6 +387,37 @@ async function sendMessage() {
     return;
   }
 
+  if (text.toUpperCase() === 'EXPORT') {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(history))));
+    const full = 'MEMORY:' + encoded;
+    try {
+      await navigator.clipboard.writeText(full);
+      setStatus('COPIED');
+    } catch (e) {
+      input.value = full;
+      input.select();
+      setStatus('COPY MANUALLY');
+    }
+    return;
+  }
+
+  const memMatch = text.match(/^MEMORY:(.+)/i);
+  if (memMatch) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(memMatch[1].trim()))));
+      if (Array.isArray(decoded) && decoded.length) {
+        history = decoded;
+        saveHistory();
+        setStatus('RESTORED');
+      } else {
+        setStatus('EMPTY');
+      }
+    } catch (e) {
+      setStatus('INVALID');
+    }
+    return;
+  }
+
   setStatus('...');
   startThinking();
 
