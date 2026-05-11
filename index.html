@@ -101,7 +101,10 @@ const rightEye = document.getElementById('right-eye');
 const leftBrow = document.getElementById('left-brow');
 const rightBrow = document.getElementById('right-brow');
 
-let history = [];
+let savedHistory = localStorage.getItem('alfi_history');
+let history = savedHistory ? JSON.parse(savedHistory) : [];
+let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
+localStorage.setItem('alfi_user_id', userId);
 let ttsEnabled = true;
 let isListening = false;
 let isSpeaking = false;
@@ -306,6 +309,12 @@ function speak(text) {
   else console.log('Alf-I voice: default');
 }
 
+function saveHistory() {
+  const trimmed = history.slice(-100);
+  localStorage.setItem('alfi_history', JSON.stringify(trimmed));
+  if (trimmed.length < history.length) history = trimmed;
+}
+
 function setStatus(msg) { statusEl.textContent = msg; }
 
 async function sendMessage() {
@@ -316,6 +325,7 @@ async function sendMessage() {
   startThinking();
 
   history.push({ role: 'user', content: text });
+  saveHistory();
 
   try {
     const res = await fetch('/api/chat', {
@@ -329,6 +339,7 @@ async function sendMessage() {
     if (data.error) { setStatus('ERROR'); return; }
 
     history.push({ role: 'assistant', content: data.content });
+    saveHistory();
     setStatus('READY');
     happyReaction();
     setTimeout(() => speak(data.content), 300);
