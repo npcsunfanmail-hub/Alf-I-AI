@@ -98,7 +98,6 @@ TV_TOOLS = [
             "name": "control_tv",
             "description": "Send a remote control command to a smart TV. The user also has a remote panel with buttons for direct control.",
             "parameters": {
-            "parameters": {
                 "type": "object",
                 "properties": {
                     "brand": {
