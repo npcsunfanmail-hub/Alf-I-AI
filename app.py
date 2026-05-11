@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime, timezone
 import requests
 import urllib.parse
 from bs4 import BeautifulSoup
@@ -118,7 +119,10 @@ def chat():
     if not messages:
         return jsonify({"error": "messages required"}), 400
 
-    msgs = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+    now = datetime.now(timezone.utc)
+    date_str = now.strftime("%A, %B %d, %Y at %I:%M %p UTC")
+    sys_msg = SYSTEM_PROMPT + f"\n\nCurrent date and time: {date_str}."
+    msgs = [{"role": "system", "content": sys_msg}] + messages
 
     try:
         msg = call_llm(msgs)
