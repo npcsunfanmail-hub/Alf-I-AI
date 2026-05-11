@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/chat.py": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
