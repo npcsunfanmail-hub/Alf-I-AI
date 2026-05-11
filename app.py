@@ -121,7 +121,7 @@ def chat():
 
     now = datetime.now(timezone.utc)
     date_str = now.strftime("%A, %B %d, %Y at %I:%M %p UTC")
-    sys_msg = SYSTEM_PROMPT + f"\n\nCurrent date and time: {date_str}."
+    sys_msg = SYSTEM_PROMPT + f"\n\n[SYSTEM: Today's date is {date_str}. You already know the current date — do not search for it.]"
     msgs = [{"role": "system", "content": sys_msg}] + messages
 
     try:
