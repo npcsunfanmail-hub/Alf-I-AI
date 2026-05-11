@@ -67,6 +67,12 @@ def call_llm(messages):
 
 
 class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"AI Assistant API is running")
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._cors_headers()
