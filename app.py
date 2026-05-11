@@ -44,9 +44,11 @@ def save_history(user_id, history):
     )
     conn.commit()
     conn.close()
+    print(f"Saved {len(history)} messages for user {user_id[:16]}... DB: {DB_PATH}")
 
 
 init_db()
+print(f"DB path: {DB_PATH}")
 
 SYSTEM_PROMPT = "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson."
 

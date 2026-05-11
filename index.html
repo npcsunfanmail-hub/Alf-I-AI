@@ -123,13 +123,16 @@ async function loadHistory() {
     if (data.history && data.history.length) {
       history = data.history;
       localStorage.setItem('alfi_history', JSON.stringify(history));
+      console.log('Loaded', history.length, 'messages from server for', userId.slice(0, 8) + '...');
     } else {
       const saved = localStorage.getItem('alfi_history');
       if (saved) history = JSON.parse(saved);
+      console.log('Server empty, loaded', history.length, 'from localStorage');
     }
   } catch (e) {
     const saved = localStorage.getItem('alfi_history');
     if (saved) history = JSON.parse(saved);
+    console.log('Load failed, loaded', history.length, 'from localStorage');
   }
 }
 loadHistory();
@@ -339,7 +342,8 @@ function speak(text) {
 
 function saveHistory() {
   localStorage.setItem('alfi_history', JSON.stringify(history));
-  fetch('/api/sync', {
+  console.log('Saving', history.length, 'messages for user', userId.slice(0, 8) + '...');
+  return fetch('/api/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id: userId, history: history })
@@ -349,10 +353,13 @@ function saveHistory() {
 function setStatus(msg) { statusEl.textContent = msg; }
 
 async function switchUser(targetId) {
+  setStatus('SAVING...');
+  await saveHistory();
   setStatus('LOADING...');
   try {
     const res = await fetch('/api/sync?user_id=' + encodeURIComponent(targetId));
     const data = await res.json();
+    console.log('Switch: API returned', data.history ? data.history.length + ' messages' : 'null');
     if (data.history && data.history.length) {
       history = data.history;
       userId = targetId;
@@ -364,6 +371,7 @@ async function switchUser(targetId) {
       setStatus('NOT FOUND');
     }
   } catch (e) {
+    console.log('Switch error:', e);
     setStatus('SYNC ERROR');
   }
 }
