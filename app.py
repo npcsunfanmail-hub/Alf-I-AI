@@ -1,5 +1,6 @@
 import os
 import json
+import traceback
 import tempfile
 import sqlite3
 from datetime import datetime, timezone
@@ -177,7 +178,7 @@ def chat():
 
     now = datetime.now(timezone.utc)
     date_str = now.strftime("%A, %B %d, %Y at %I:%M %p UTC")
-    sys_msg = SYSTEM_PROMPT + f"\n\n[SYSTEM: Today's date is {date_str}. You already know the current date — do not search for it.]"
+    sys_msg = SYSTEM_PROMPT + f"\n\n[SYSTEM: Today's date is {date_str}. You already know the current date - do not search for it.]"
     msgs = [{"role": "system", "content": sys_msg}] + messages
 
     try:
@@ -202,4 +203,5 @@ def chat():
 
         return jsonify({"content": content.strip()})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        traceback.print_exc()
+        return jsonify({"error": repr(e)}), 500

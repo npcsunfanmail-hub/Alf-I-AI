@@ -397,7 +397,7 @@ async function sendMessage() {
     const data = await res.json();
     stopThinking();
 
-    if (data.error) { setStatus('ERROR'); return; }
+    if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
 
     history.push({ role: 'assistant', content: data.content });
     saveHistory();
