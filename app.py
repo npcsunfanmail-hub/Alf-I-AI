@@ -92,35 +92,23 @@ TOOLS = [
 def search_web(query: str) -> str:
     try:
         encoded = urllib.parse.quote(query)
-        url = f"https://api.duckduckgo.com/?q={encoded}&format=json&skip_disambig=1"
-        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        url = f"https://html.duckduckgo.com/html/?q={encoded}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0.0.0 Safari/537.36"}
+        resp = requests.get(url, headers=headers, timeout=10)
         resp.raise_for_status()
-        data = resp.json()
-        parts = []
-        if data.get("Heading"):
-            parts.append(f"Topic: {data['Heading']}")
-        if data.get("AbstractText"):
-            parts.append(data["AbstractText"])
-        if data.get("Infobox") and data["Infobox"].get("content"):
-            for item in data["Infobox"]["content"]:
-                if item.get("label") and item.get("value"):
-                    parts.append(f"{item['label']}: {item['value']}")
-        if data.get("RelatedTopics"):
-            for t in data["RelatedTopics"][:8]:
-                if isinstance(t, dict) and t.get("Text"):
-                    parts.append(t["Text"])
-        if data.get("Results"):
-            for r in data["Results"][:5]:
-                if r.get("Text"):
-                    parts.append(r["Text"])
-        if parts:
-            return "\n".join(parts)[:3000]
-        text_url = f"https://lite.duckduckgo.com/lite/?q={encoded}"
-        tr = requests.get(text_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        soup = BeautifulSoup(tr.text, "html.parser")
-        links = soup.find_all("a", class_="result-link")
-        if links:
-            return "\n".join([a.get_text(strip=True) for a in links[:10]])
+        soup = BeautifulSoup(resp.text, "html.parser")
+        results = []
+        for r in soup.select(".result__body"):
+            title_el = r.select_one(".result__title a")
+            snippet_el = r.select_one(".result__snippet")
+            if title_el:
+                title = title_el.get_text(strip=True)
+                snippet = snippet_el.get_text(strip=True) if snippet_el else ""
+                results.append(f"{title}\n{snippet}")
+            if len(results) >= 5:
+                break
+        if results:
+            return "\n\n".join(results)[:3000]
         return f"No results found for '{query}'."
     except Exception as e:
         return f"Search error: {e}"
