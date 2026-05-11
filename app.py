@@ -1,5 +1,7 @@
 import os
 import json
+import tempfile
+import sqlite3
 from datetime import datetime, timezone
 import requests
 import urllib.parse
@@ -10,6 +12,41 @@ from openai import OpenAI
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(__file__)
+DB_PATH = os.path.join(tempfile.gettempdir(), "alfi_conversations.db")
+
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS conversations (
+            user_id TEXT PRIMARY KEY,
+            history TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def load_history(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.execute("SELECT history FROM conversations WHERE user_id = ?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return json.loads(row[0]) if row else None
+
+
+def save_history(user_id, history):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT OR REPLACE INTO conversations (user_id, history, updated_at) VALUES (?, ?, datetime('now'))",
+        (user_id, json.dumps(history)),
+    )
+    conn.commit()
+    conn.close()
+
+
+init_db()
 
 SYSTEM_PROMPT = "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson."
 
@@ -110,6 +147,23 @@ def call_llm(messages):
 @app.route("/")
 def serve():
     return open(os.path.join(BASE_DIR, "index.html")).read(), 200, {"Content-Type": "text/html"}
+
+
+@app.route("/api/sync", methods=["GET", "POST"])
+def sync():
+    if request.method == "POST":
+        data = request.get_json()
+        uid = data.get("user_id")
+        hist = data.get("history", [])
+        if not uid:
+            return jsonify({"error": "user_id required"}), 400
+        save_history(uid, hist)
+        return jsonify({"ok": True})
+    uid = request.args.get("user_id")
+    if not uid:
+        return jsonify({"error": "user_id required"}), 400
+    hist = load_history(uid)
+    return jsonify({"history": hist or []})
 
 
 @app.route("/api/chat", methods=["POST"])

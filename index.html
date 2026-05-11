@@ -38,6 +38,9 @@
 
   #name-label { color: rgba(255,255,255,0.12); font-size: min(2.8vw, 13px); font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-top: min(4vw, 18px); pointer-events: none; }
   #status-text { color: rgba(255,255,255,0.4); font-size: min(3.2vw, 14px); text-align: center; padding: min(2vw, 10px); letter-spacing: 1px; }
+  #user-id-label { color: rgba(255,255,255,0.15); font-size: min(2.2vw, 10px); text-align: center; cursor: pointer; user-select: none; padding: 0 0 min(1vw, 6px); letter-spacing: 0.5px; transition: color 0.2s; }
+  #user-id-label:hover { color: rgba(255,255,255,0.4); }
+  #user-id-label.copied { color: #4fc3f7; }
   #bottom-area { flex-shrink: 0; padding: min(3vw, 14px) min(4vw, 20px) max(env(safe-area-inset-bottom, 8px), min(4vw, 20px)); background: rgba(255,255,255,0.03); border-top: 1px solid rgba(255,255,255,0.06); }
   #input-row { display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,0.08); border-radius: 24px; padding: 4px 4px 4px 14px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #input { flex: 1; min-width: 0; background: none; border: none; color: white; font-size: 16px; outline: none; padding: 9px 0; }
@@ -75,6 +78,7 @@
       <div id="name-label">ALF-I</div>
     </div>
     <div id="status-text">READY</div>
+    <div id="user-id-label" onclick="copyUserId()" title="Tap to copy user ID">ID: <span id="user-id-display"></span></div>
   </div>
   <div id="bottom-area">
     <div id="input-row">
@@ -98,6 +102,7 @@
 <script>
 const input = document.getElementById('input');
 const statusEl = document.getElementById('status-text');
+const userIdDisplay = document.getElementById('user-id-display');
 const voiceBtn = document.getElementById('voice-btn');
 const ttsBtn = document.getElementById('tts-toggle');
 const mouth = document.getElementById('mouth');
@@ -106,10 +111,28 @@ const rightEye = document.getElementById('right-eye');
 const leftBrow = document.getElementById('left-brow');
 const rightBrow = document.getElementById('right-brow');
 
-let savedHistory = localStorage.getItem('alfi_history');
-let history = savedHistory ? JSON.parse(savedHistory) : [];
 let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
 localStorage.setItem('alfi_user_id', userId);
+if (userIdDisplay) userIdDisplay.textContent = userId.slice(0, 8) + '...';
+let history = [];
+
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/sync?user_id=' + encodeURIComponent(userId));
+    const data = await res.json();
+    if (data.history && data.history.length) {
+      history = data.history;
+      localStorage.setItem('alfi_history', JSON.stringify(history));
+    } else {
+      const saved = localStorage.getItem('alfi_history');
+      if (saved) history = JSON.parse(saved);
+    }
+  } catch (e) {
+    const saved = localStorage.getItem('alfi_history');
+    if (saved) history = JSON.parse(saved);
+  }
+}
+loadHistory();
 let ttsEnabled = true;
 let isListening = false;
 let isSpeaking = false;
@@ -316,6 +339,11 @@ function speak(text) {
 
 function saveHistory() {
   localStorage.setItem('alfi_history', JSON.stringify(history));
+  fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, history: history })
+  }).catch(() => {});
 }
 
 function setStatus(msg) { statusEl.textContent = msg; }
@@ -352,10 +380,23 @@ async function sendMessage() {
   }
 }
 
+function copyUserId() {
+  navigator.clipboard.writeText(userId).then(() => {
+    const label = document.getElementById('user-id-label');
+    label.textContent = 'Copied!';
+    label.classList.add('copied');
+    setTimeout(() => {
+      label.textContent = 'ID: ' + userId.slice(0, 8) + '...';
+      label.classList.remove('copied');
+    }, 1500);
+  }).catch(() => {});
+}
+
 function resetConversation() {
   if (!confirm('Are you sure you want to reset the conversation? This will clear all history.')) return;
   history = [];
   localStorage.removeItem('alfi_history');
+  saveHistory();
   window.speechSynthesis.cancel();
   setSpeaking(false);
   setStatus('READY');
