@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import urllib.parse
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
 from openai import OpenAI
@@ -9,7 +10,7 @@ app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(__file__)
 
-SYSTEM_PROMPT = "You are Alf-I, a helpful AI assistant. You talk with a friendly and slightly playful personality. You can browse the web to fetch information. Be concise."
+SYSTEM_PROMPT = "You are Alf-I, an AI assistant created by Logan Robinson. You have a friendly, slightly playful Australian personality. You can search the web and browse webpages to get current information. When asked about anything time-sensitive or recent, always search the web first. Never claim to lack current knowledge without searching. Be concise."
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
@@ -19,8 +20,22 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "search_web",
+            "description": "Search the web for current information, news, and recent events. Use this for anything time-sensitive.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query"}
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "browse_web",
-            "description": "Fetch and read the content of a webpage.",
+            "description": "Fetch and read the full content of a specific webpage.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -31,6 +46,43 @@ TOOLS = [
         },
     }
 ]
+
+
+def search_web(query: str) -> str:
+    try:
+        encoded = urllib.parse.quote(query)
+        url = f"https://api.duckduckgo.com/?q={encoded}&format=json&skip_disambig=1"
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        parts = []
+        if data.get("Heading"):
+            parts.append(f"Topic: {data['Heading']}")
+        if data.get("AbstractText"):
+            parts.append(data["AbstractText"])
+        if data.get("Infobox") and data["Infobox"].get("content"):
+            for item in data["Infobox"]["content"]:
+                if item.get("label") and item.get("value"):
+                    parts.append(f"{item['label']}: {item['value']}")
+        if data.get("RelatedTopics"):
+            for t in data["RelatedTopics"][:8]:
+                if isinstance(t, dict) and t.get("Text"):
+                    parts.append(t["Text"])
+        if data.get("Results"):
+            for r in data["Results"][:5]:
+                if r.get("Text"):
+                    parts.append(r["Text"])
+        if parts:
+            return "\n".join(parts)[:3000]
+        text_url = f"https://lite.duckduckgo.com/lite/?q={encoded}"
+        tr = requests.get(text_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        soup = BeautifulSoup(tr.text, "html.parser")
+        links = soup.find_all("a", class_="result-link")
+        if links:
+            return "\n".join([a.get_text(strip=True) for a in links[:10]])
+        return f"No results found for '{query}'."
+    except Exception as e:
+        return f"Search error: {e}"
 
 
 def browse_web(url: str) -> str:
@@ -78,7 +130,12 @@ def chat():
             for tc in tool_calls:
                 name = tc.function.name
                 args = json.loads(tc.function.arguments)
-                result = browse_web(**args) if name == "browse_web" else f"Unknown tool: {name}"
+                if name == "search_web":
+                    result = search_web(**args)
+                elif name == "browse_web":
+                    result = browse_web(**args)
+                else:
+                    result = f"Unknown tool: {name}"
                 msgs.append({"role": "tool", "tool_call_id": tc.id, "content": result})
             msg2 = call_llm(msgs)
             content = msg2.content or ""
