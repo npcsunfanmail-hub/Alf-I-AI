@@ -199,6 +199,7 @@ let voicesCache = [];
 
 function loadVoices() {
   voicesCache = window.speechSynthesis.getVoices();
+  console.log('Alf-I available voices:', voicesCache.map(v => v.name + ' [' + v.lang + ']').join(', '));
 }
 if (window.speechSynthesis) {
   loadVoices();
@@ -209,13 +210,14 @@ function findVoice() {
   const vs = window.speechSynthesis.getVoices();
   const list = vs.length ? vs : voicesCache;
   if (!list.length) return null;
-  const isF = n => /female|zoe|vanessa|karen|natya|fiona|catherine|serena|tracy|moira|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|miguel|rosa|susan|samantha|veena|yuri/i.test(n);
+  const isF = n => /female|zoe|vanessa|karen|natya|fiona|catherine|serena|tracy|moira|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|susan|veena|yuri|aria|jenny/i.test(n);
+  const fems = list.filter(v => isF(v.name));
   let v;
-  v = list.find(x => x.lang.startsWith('en-AU') && isF(x.name)); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en-AU')); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en-GB')); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en')); if (v) return v;
   v = list.find(x => x.lang.startsWith('en-AU')); if (v) return v;
-  v = list.find(x => x.lang.startsWith('en-GB') && isF(x.name)); if (v) return v;
   v = list.find(x => x.lang.startsWith('en-GB')); if (v) return v;
-  v = list.find(x => x.lang.startsWith('en') && isF(x.name)); if (v) return v;
   return null;
 }
 
@@ -223,13 +225,15 @@ function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.92;
-  u.pitch = 1.6;
+  u.rate = 0.9;
+  u.pitch = 2.0;
   u.onstart = () => setSpeaking(true);
   u.onend = () => setSpeaking(false);
   u.onerror = () => setSpeaking(false);
   const voice = findVoice();
   if (voice) u.voice = voice;
+  if (voice) console.log('Alf-I voice:', voice.name, voice.lang);
+  else console.log('Alf-I voice: default');
   window.speechSynthesis.speak(u);
 }
 
