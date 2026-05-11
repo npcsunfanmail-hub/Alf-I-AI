@@ -10,8 +10,10 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a2e; display: flex; justify-content: center; align-items: center; }
   #app { width: 100%; max-width: 500px; height: 100dvh; background: linear-gradient(180deg, #1a1a4e 0%, #0d0d3a 40%, #0a0a2e 100%); display: flex; flex-direction: column; position: relative; }
   #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; min-height: 0; }
-  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(5vw, 22px); animation: faceFloat 4s ease-in-out infinite; }
-  @keyframes faceFloat { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(5vw, 22px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s; }
+  @keyframes faceIdle { 0%, 100% { transform: translateY(0px) rotate(0deg); } 25% { transform: translateY(-6px) rotate(1.2deg); } 50% { transform: translateY(-10px) rotate(0deg); } 75% { transform: translateY(-6px) rotate(-1.2deg); } }
+  #face.thinking { animation: faceThink 4s ease-in-out infinite; }
+  @keyframes faceThink { 0%, 100% { transform: translateY(-3px) rotate(0.5deg); } 50% { transform: translateY(-8px) rotate(-0.5deg); } }
 
   #brow-group { display: flex; gap: min(16vw, 70px); align-items: center; justify-content: center; width: 100%; }
   .brow { width: min(22vw, 90px); height: min(1.6vw, 7px); background: white; border-radius: min(0.8vw, 3px); transition: transform 0.5s ease; box-shadow: 0 0 16px rgba(255,255,255,0.1); }
@@ -20,9 +22,13 @@
   #eye-group { display: flex; gap: min(16vw, 70px); align-items: center; justify-content: center; width: 100%; }
   .eye { width: min(16vw, 68px); height: min(26vw, 110px); background: white; border-radius: min(1.4vw, 6px); position: relative; display: flex; align-items: center; justify-content: center; transition: height 0.1s ease; box-shadow: 0 0 40px rgba(255,255,255,0.1); }
   .eye.blink { height: min(0.8vw, 3px); }
-  .pupil { width: min(7vw, 30px); height: min(10vw, 42px); background: linear-gradient(135deg, #1a1a4e, #0a0a2e); border-radius: min(0.8vw, 3px); position: relative; transition: transform 0.4s ease; animation: pupilDrift 12s ease-in-out infinite; }
+  .eye.widen { height: min(30vw, 120px); transition: height 0.2s ease; }
+  .thinking .eye.blink { height: min(0.8vw, 3px); transition: height 0.25s ease; }
+  .pupil { width: min(7vw, 30px); height: min(10vw, 42px); background: linear-gradient(135deg, #1a1a4e, #0a0a2e); border-radius: min(0.8vw, 3px); position: relative; transition: transform 0.5s ease; animation: pupilDrift 12s ease-in-out infinite; }
   .pupil::after { content: ''; position: absolute; width: min(2.4vw, 10px); height: min(2.4vw, 10px); background: rgba(255,255,255,0.35); border-radius: 50%; top: min(1.2vw, 5px); right: min(1.2vw, 5px); }
-  @keyframes pupilDrift { 0%, 100% { transform: translateX(0px); } 30% { transform: translateX(-4px); } 70% { transform: translateX(4px); } }
+  @keyframes pupilDrift { 0%, 100% { transform: translateX(0px) translateY(0px); } 25% { transform: translateX(-4px) translateY(0px); } 50% { transform: translateX(0px) translateY(-3px); } 75% { transform: translateX(4px) translateY(0px); } }
+  .thinking .pupil { animation: pupilThink 3s ease-in-out infinite; }
+  @keyframes pupilThink { 0%, 100% { transform: translateX(0px) translateY(-4px); } 50% { transform: translateX(0px) translateY(-8px); } }
 
   #mouth-area { display: flex; align-items: center; justify-content: center; }
   #mouth { width: min(24vw, 100px); height: min(2vw, 8px); background: white; border-radius: min(0.8vw, 3px); transition: width 0.15s ease, background 0.1s, border 0.1s; box-shadow: 0 0 24px rgba(255,255,255,0.08); }
@@ -99,35 +105,70 @@ let history = [];
 let ttsEnabled = true;
 let isListening = false;
 let isSpeaking = false;
+let isThinking = false;
 let recognition = null;
 let blinkTimer = null;
 let browTimer = null;
 let mouthAnimFrame = null;
 let mouthStart = 0;
 
+const face = document.getElementById('face');
+const pupils = document.querySelectorAll('.pupil');
+
 function blinkEyes() {
+  const dur = isThinking ? 250 : 100;
   leftEye.classList.add('blink');
   rightEye.classList.add('blink');
   setTimeout(() => {
     leftEye.classList.remove('blink');
     rightEye.classList.remove('blink');
-  }, 100);
-  const next = 2000 + Math.random() * 4000;
+  }, dur);
+  const next = isThinking ? 4000 + Math.random() * 3000 : 2000 + Math.random() * 4000;
   blinkTimer = setTimeout(blinkEyes, next);
 }
 blinkEyes();
 
 function animateBrows() {
-  leftBrow.classList.add('raise');
-  rightBrow.classList.add('raise');
+  if (isThinking || isSpeaking) { browTimer = setTimeout(animateBrows, 1000); return; }
+  const both = Math.random() > 0.3;
+  if (both) { leftBrow.classList.add('raise'); rightBrow.classList.add('raise'); }
+  else if (Math.random() > 0.5) leftBrow.classList.add('raise');
+  else rightBrow.classList.add('raise');
   setTimeout(() => {
     leftBrow.classList.remove('raise');
     rightBrow.classList.remove('raise');
-  }, 600);
-  const next = 3000 + Math.random() * 5000;
+  }, 500);
+  const next = 2000 + Math.random() * 4000;
   browTimer = setTimeout(animateBrows, next);
 }
 animateBrows();
+
+function startThinking() {
+  isThinking = true;
+  face.classList.add('thinking');
+  leftBrow.classList.add('raise');
+  rightBrow.classList.add('raise');
+}
+
+function stopThinking() {
+  isThinking = false;
+  face.classList.remove('thinking');
+  leftBrow.classList.remove('raise');
+  rightBrow.classList.remove('raise');
+}
+
+function happyReaction() {
+  leftEye.classList.add('widen');
+  rightEye.classList.add('widen');
+  leftBrow.classList.add('raise');
+  rightBrow.classList.add('raise');
+  setTimeout(() => {
+    leftEye.classList.remove('widen');
+    rightEye.classList.remove('widen');
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+  }, 600);
+}
 
 function startMouthAnimation() {
   mouth.classList.add('open');
@@ -239,17 +280,30 @@ function findVoice() {
 function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.88;
-  u.pitch = 1.25;
-  u.onstart = () => setSpeaking(true);
-  u.onend = () => setSpeaking(false);
-  u.onerror = () => setSpeaking(false);
-  const voice = findVoice();
-  if (voice) u.voice = voice;
-  if (voice) console.log('Alf-I voice:', voice.name, voice.lang);
+  const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+  let idx = 0;
+  let voiceInfo = null;
+
+  function speakNext() {
+    if (idx >= parts.length) { setSpeaking(false); return; }
+    const u = new SpeechSynthesisUtterance(parts[idx].trim());
+    u.rate = 0.88;
+    u.pitch = 1.25 + (Math.sin(idx * 1.7) * 0.06);
+    const voice = findVoice();
+    if (voice) { u.voice = voice; if (!voiceInfo) voiceInfo = voice.name + ' ' + voice.lang; }
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => {
+      idx++;
+      const p = parts[idx - 1].trim();
+      const pause = /[,;:]$/.test(p) ? 180 : /[.!?]$/.test(p) ? 350 : 100;
+      setTimeout(speakNext, pause);
+    };
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
+  }
+  speakNext();
+  if (voiceInfo) console.log('Alf-I voice:', voiceInfo);
   else console.log('Alf-I voice: default');
-  window.speechSynthesis.speak(u);
 }
 
 function setStatus(msg) { statusEl.textContent = msg; }
@@ -259,6 +313,7 @@ async function sendMessage() {
   if (!text) return;
   input.value = '';
   setStatus('...');
+  startThinking();
 
   history.push({ role: 'user', content: text });
 
@@ -269,13 +324,16 @@ async function sendMessage() {
       body: JSON.stringify({ messages: history })
     });
     const data = await res.json();
+    stopThinking();
 
     if (data.error) { setStatus('ERROR'); return; }
 
     history.push({ role: 'assistant', content: data.content });
     setStatus('READY');
-    speak(data.content);
+    happyReaction();
+    setTimeout(() => speak(data.content), 300);
   } catch (e) {
+    stopThinking();
     setStatus('CONNECTION ERROR');
   }
 }
