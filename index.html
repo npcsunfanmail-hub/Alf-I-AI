@@ -348,10 +348,37 @@ function saveHistory() {
 
 function setStatus(msg) { statusEl.textContent = msg; }
 
+async function switchUser(targetId) {
+  setStatus('LOADING...');
+  try {
+    const res = await fetch('/api/sync?user_id=' + encodeURIComponent(targetId));
+    const data = await res.json();
+    if (data.history && data.history.length) {
+      history = data.history;
+      userId = targetId;
+      localStorage.setItem('alfi_user_id', userId);
+      localStorage.setItem('alfi_history', JSON.stringify(history));
+      if (userIdDisplay) userIdDisplay.textContent = userId.slice(0, 8) + '...';
+      setStatus('SWITCHED');
+    } else {
+      setStatus('NOT FOUND');
+    }
+  } catch (e) {
+    setStatus('SYNC ERROR');
+  }
+}
+
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
+
+  const idMatch = text.match(/^ID:\s*(\S+)/i);
+  if (idMatch) {
+    await switchUser(idMatch[1]);
+    return;
+  }
+
   setStatus('...');
   startThinking();
 
