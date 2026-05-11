@@ -51,6 +51,51 @@
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   #tts-toggle.active svg { fill: #4fc3f7; }
   #send-btn svg { fill: #4fc3f7; }
+
+  #tv-status-bar { display:flex; align-items:center; gap:6px; padding:3px 4px; margin-bottom:1px; border-radius:6px; cursor:pointer; transition:all .15s; font-size:11px; user-select:none; }
+  #tv-status-bar:active { background:rgba(255,255,255,0.06); }
+  #tv-status-icon { width:16px; height:16px; fill:rgba(255,255,255,0.3); flex-shrink:0; }
+  #tv-status-text { color:rgba(255,255,255,0.3); letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #tv-status-text.connected { color:#4fc3f7; }
+
+  #tv-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; opacity:0; pointer-events:none; transition:opacity .3s; }
+  #tv-overlay.active { opacity:1; pointer-events:auto; }
+
+  #tv-panel { position:fixed; bottom:0; left:0; right:0; z-index:101; background:linear-gradient(180deg,#1a1a4e,#0d0d3a); border-top:1px solid rgba(255,255,255,0.08); border-radius:16px 16px 0 0; padding:14px 14px max(env(safe-area-inset-bottom,14px),14px); transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); max-height:80dvh; overflow-y:auto; }
+  #tv-panel.active { transform:translateY(0); }
+
+  #tv-panel-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  #tv-panel-title { color:white; font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  #tv-panel-title svg { width:16px; height:16px; fill:#4fc3f7; }
+  #tv-panel-close { background:none; border:none; color:rgba(255,255,255,0.4); font-size:18px; cursor:pointer; padding:2px 6px; line-height:1; }
+  #tv-panel-close:active { color:white; }
+
+  #tv-connection-bar { display:flex; align-items:center; gap:6px; margin-bottom:10px; padding:6px 10px; background:rgba(255,255,255,0.04); border-radius:8px; font-size:12px; }
+  .tv-dot { width:7px; height:7px; border-radius:50%; background:#555; flex-shrink:0; transition:background .3s; }
+  .tv-dot.connected { background:#4caf50; }
+  .tv-device-name { color:white; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tv-action { background:rgba(255,255,255,0.08); border:none; color:white; padding:3px 8px; border-radius:5px; font-size:10px; cursor:pointer; flex-shrink:0; }
+  .tv-action:active { background:rgba(255,255,255,0.15); }
+  .tv-action.scan { background:#4fc3f7; color:#0a0a2e; font-weight:600; }
+
+  .tv-section-label { color:rgba(255,255,255,0.25); font-size:9px; letter-spacing:1.2px; text-transform:uppercase; text-align:center; margin:6px 0 3px; }
+  .tv-remote-row { display:flex; gap:5px; justify-content:center; flex-wrap:wrap; }
+  .tv-remote-btn { background:rgba(255,255,255,0.06); border:none; border-radius:8px; color:rgba(255,255,255,0.8); padding:8px 6px; font-size:11px; cursor:pointer; transition:all .1s; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:1px; min-width:36px; min-height:36px; user-select:none; }
+  .tv-remote-btn svg { width:18px; height:18px; fill:rgba(255,255,255,0.6); }
+  .tv-remote-btn:active { background:rgba(255,255,255,0.15); transform:scale(0.95); }
+  .tv-remote-btn.power { background:rgba(234,67,53,0.2); }
+  .tv-remote-btn.power:active { background:rgba(234,67,53,0.35); }
+  .tv-remote-btn.power svg { fill:#ea4335; }
+  .tv-remote-btn.app { border-radius:8px; font-weight:600; font-size:9px; min-width:50px; padding:6px 3px; }
+  .tv-remote-btn.app.netflix { background:rgba(229,9,20,0.15); }
+  .tv-remote-btn.app.youtube { background:rgba(255,0,0,0.15); }
+  .tv-remote-btn.app.prime { background:rgba(0,168,225,0.12); }
+  .tv-remote-btn.app.disney { background:rgba(17,60,207,0.15); }
+  .tv-remote-btn.dpad { min-width:44px; min-height:44px; border-radius:10px; }
+  .tv-remote-btn.dpad.ok { background:rgba(79,195,247,0.12); border:1px solid rgba(79,195,247,0.15); }
+  .tv-remote-btn.dpad.ok span { color:#4fc3f7; font-weight:700; font-size:12px; }
+  .tv-remote-label { font-size:8px; color:rgba(255,255,255,0.35); letter-spacing:0.3px; }
+  #tv-no-connection { text-align:center; padding:20px; color:rgba(255,255,255,0.25); font-size:12px; }
 </style>
 </head>
 <body>
@@ -77,10 +122,17 @@
     <div id="status-text">READY</div>
   </div>
   <div id="bottom-area">
+    <div id="tv-status-bar" onclick="toggleTVPanel()">
+      <svg viewBox="0 0 24 24" id="tv-status-icon"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+      <span id="tv-status-text">No TV Connected</span>
+    </div>
     <div id="input-row">
       <input id="input" type="text" placeholder="Type a message..." autofocus>
       <button class="icon-btn" id="reset-btn" onclick="resetConversation()" title="New conversation">
         <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      </button>
+      <button class="icon-btn" id="tv-btn" onclick="toggleTVPanel()" title="TV Remote">
+        <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
       </button>
       <button class="icon-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input">
         <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
@@ -346,6 +398,32 @@ function saveHistory() {
 
 function setStatus(msg) { statusEl.textContent = msg; }
 
+async function processChatLoop() {
+  let done = false, loopCount = 0, finalContent = '';
+  while (!done && loopCount < 10) {
+    loopCount++;
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
+    });
+    const data = await res.json();
+    if (data.error) { stopThinking(); setStatus('ERR: ' + data.error.slice(0, 60)); return null; }
+    if (data.type === 'tool_call') {
+      history.push({ role: 'assistant', content: data.content || null, tool_calls: data.tool_calls });
+      saveHistory();
+      for (const tc of data.tool_calls) {
+        setStatus('AI: ' + tc.function.name);
+        const result = await executeToolCall(tc);
+        history.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+        saveHistory();
+      }
+    } else { done = true; finalContent = data.content; }
+  }
+  if (loopCount >= 10) { setStatus('MAX TOOL CALLS'); finalContent = finalContent || 'Max tool calls reached.'; }
+  return finalContent;
+}
+
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
@@ -354,14 +432,8 @@ async function sendMessage() {
   if (text.toUpperCase() === 'EXPORT') {
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(history))));
     const full = 'MEMORY:' + encoded;
-    try {
-      await navigator.clipboard.writeText(full);
-      setStatus('COPIED');
-    } catch (e) {
-      input.value = full;
-      input.select();
-      setStatus('COPY MANUALLY');
-    }
+    try { await navigator.clipboard.writeText(full); setStatus('EXPORTED'); }
+    catch (e) { input.value = full; input.select(); setStatus('COPY MANUALLY'); }
     return;
   }
 
@@ -369,41 +441,27 @@ async function sendMessage() {
   if (memMatch) {
     try {
       const decoded = JSON.parse(decodeURIComponent(escape(atob(memMatch[1].trim()))));
-      if (Array.isArray(decoded) && decoded.length) {
-        history = decoded;
-        saveHistory();
-        setStatus('RESTORED');
-      } else {
-        setStatus('EMPTY');
-      }
-    } catch (e) {
-      setStatus('INVALID');
-    }
+      if (Array.isArray(decoded) && decoded.length) { history = decoded; saveHistory(); setStatus('RESTORED'); }
+      else { setStatus('EMPTY'); }
+    } catch (e) { setStatus('INVALID'); }
     return;
   }
 
   setStatus('...');
   startThinking();
-
   history.push({ role: 'user', content: text });
   saveHistory();
 
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history })
-    });
-    const data = await res.json();
+    const content = await processChatLoop();
     stopThinking();
-
-    if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
-
-    history.push({ role: 'assistant', content: data.content });
-    saveHistory();
-    setStatus('READY');
-    happyReaction();
-    setTimeout(() => speak(data.content), 300);
+    if (content) {
+      history.push({ role: 'assistant', content });
+      saveHistory();
+      setStatus('READY');
+      happyReaction();
+      setTimeout(() => speak(content), 300);
+    }
   } catch (e) {
     stopThinking();
     setStatus('CONNECTION ERROR');
@@ -424,6 +482,313 @@ function resetConversation() {
 input.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
+
+// === TV REMOTE MODULE ===
+let tvRemotePanelOpen = false;
+
+function toggleTVPanel() {
+  tvRemotePanelOpen = !tvRemotePanelOpen;
+  document.getElementById('tv-overlay').classList.toggle('active', tvRemotePanelOpen);
+  document.getElementById('tv-panel').classList.toggle('active', tvRemotePanelOpen);
+  if (tvRemotePanelOpen) updateTVRemoteUI();
+}
+
+class TVBluetoothRemote {
+  constructor() {
+    this.device = null; this.server = null; this.characteristic = null;
+    this.connected = false; this.deviceName = '';
+  }
+
+  async scan() {
+    try {
+      if (!('bluetooth' in navigator)) return { success: false, error: 'Web Bluetooth not supported. Use Chrome or Edge.' };
+      const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] });
+      this.device = device; this.deviceName = device.name || 'Unknown Device';
+      updateTVStatusBar(); updateTVRemoteUI();
+      device.addEventListener('gattserverdisconnected', () => {
+        this.connected = false; this.server = null; this.characteristic = null;
+        updateTVStatusBar(); updateTVRemoteUI();
+      });
+      return await this.connect();
+    } catch (e) {
+      if (e.name === 'NotFoundError') return { success: false, error: 'No device selected' };
+      return { success: false, error: e.message };
+    }
+  }
+
+  async connect() {
+    if (!this.device) return { success: false, error: 'No device selected' };
+    try {
+      this.server = await this.device.gatt.connect();
+      this.connected = true;
+      const services = await this.server.getPrimaryServices();
+      let foundChar = null;
+      for (const service of services) {
+        const chars = await service.getCharacteristics();
+        for (const char of chars) {
+          if (char.properties.write || char.properties.writeWithoutResponse) { foundChar = char; break; }
+        }
+        if (foundChar) break;
+      }
+      this.characteristic = foundChar;
+      updateTVStatusBar(); updateTVRemoteUI();
+      return { success: true, device: this.deviceName, characteristic_found: !!foundChar, characteristic_uuid: foundChar ? foundChar.uuid : null };
+    } catch (e) { this.connected = false; return { success: false, error: e.message }; }
+  }
+
+  async disconnect() {
+    try { if (this.device && this.device.gatt) this.device.gatt.disconnect(); } catch (e) {}
+    this.connected = false; this.server = null; this.characteristic = null;
+    this.device = null; this.deviceName = '';
+    updateTVStatusBar(); updateTVRemoteUI();
+    return { success: true };
+  }
+
+  async sendCommand(action) {
+    if (!this.connected || !this.server) return { success: false, error: 'TV not connected' };
+    if (this.characteristic) {
+      const encoder = new TextEncoder();
+      const attempts = [
+        encoder.encode('KEY_' + action.toUpperCase()),
+        new Uint8Array([this.getKeyCode(action)]),
+        encoder.encode(action)
+      ];
+      for (const data of attempts) {
+        try {
+          if (this.characteristic.properties.write) await this.characteristic.writeValue(data);
+          else if (this.characteristic.properties.writeWithoutResponse) await this.characteristic.writeValueWithoutResponse(data);
+          return { success: true, action };
+        } catch (e) { continue; }
+      }
+      return { success: false, error: 'Failed to write to characteristic' };
+    }
+    return { success: false, error: 'No writable characteristic found' };
+  }
+
+  getKeyCode(action) {
+    const map = {
+      toggle_power:0x30, power_on:0x30, power_off:0x30,
+      volume_up:0x80, volume_down:0x81, mute:0x7F,
+      channel_up:0x9C, channel_down:0x9D,
+      home:0x223, back:0x224, menu:0x225, exit:0x22A,
+      up:0x52, down:0x51, left:0x50, right:0x4F, select:0x28,
+      play:0xB0, pause:0xB1, stop:0xB7, rewind:0xB4, fast_forward:0xB3, record:0xB2
+    };
+    return map[action] || 0x00;
+  }
+
+  getStatus() {
+    return { connected: this.connected, device_name: this.deviceName || null };
+  }
+}
+
+const tvRemote = new TVBluetoothRemote();
+
+function updateTVStatusBar() {
+  const el = document.getElementById('tv-status-text');
+  if (tvRemote.connected) { el.textContent = tvRemote.deviceName; el.className = 'connected'; }
+  else if (tvRemote.device) { el.textContent = 'Tap to connect'; el.className = ''; }
+  else { el.textContent = 'No TV Connected'; el.className = ''; }
+}
+
+function updateTVRemoteUI() {
+  const dot = document.getElementById('tv-dot');
+  const name = document.getElementById('tv-device-name');
+  const scanBtn = document.getElementById('tv-scan-btn');
+  const discBtn = document.getElementById('tv-disconnect-btn');
+  const ctrls = document.getElementById('tv-remote-controls');
+  const noConn = document.getElementById('tv-no-connection');
+  if (tvRemote.connected) {
+    dot.className = 'tv-dot connected';
+    name.textContent = tvRemote.deviceName;
+    scanBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
+    ctrls.style.display = 'block'; noConn.style.display = 'none';
+  } else if (tvRemote.device) {
+    dot.className = 'tv-dot';
+    name.textContent = tvRemote.deviceName + ' (disconnected)';
+    scanBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
+    ctrls.style.display = 'none'; noConn.style.display = 'block';
+    noConn.textContent = 'Device disconnected. Tap Disconnect to remove.';
+  } else {
+    dot.className = 'tv-dot';
+    name.textContent = 'Not connected';
+    scanBtn.style.display = 'inline-block'; discBtn.style.display = 'none';
+    ctrls.style.display = 'none'; noConn.style.display = 'block';
+    noConn.textContent = 'Scan for a Bluetooth TV to enable the remote.';
+  }
+}
+
+async function scanForTV() {
+  const r = await tvRemote.scan();
+  if (!r.success && r.error) setStatus('TV: ' + r.error);
+}
+
+async function disconnectTV() {
+  await tvRemote.disconnect(); setStatus('TV DISCONNECTED');
+}
+
+async function sendTVCommand(action) {
+  if (!tvRemote.connected) { setStatus('TV NOT CONNECTED'); return; }
+  setStatus('TV: ' + action);
+  const r = await tvRemote.sendCommand(action);
+  if (!r.success) setStatus('TV ERR: ' + (r.error || 'failed'));
+  else setTimeout(() => setStatus('READY'), 800);
+}
+
+async function executeToolCall(tc) {
+  const name = tc.function.name;
+  let args = {};
+  try { args = JSON.parse(tc.function.arguments); } catch (e) {}
+  switch (name) {
+    case 'connect_tv':
+      if (tvRemote.connected) return { success: true, already_connected: true, device: tvRemote.deviceName };
+      if (!tvRemotePanelOpen) toggleTVPanel();
+      return { success: false, action_required: 'scan', message: 'Tap the Scan button in the TV Remote panel to find your TV' };
+    case 'disconnect_tv':
+      await tvRemote.disconnect(); return { success: true };
+    case 'tv_status':
+      return tvRemote.getStatus();
+    case 'control_tv':
+      if (!tvRemote.connected) return { success: false, error: 'No TV connected. Ask user to scan first.' };
+      return await tvRemote.sendCommand(args.action);
+    default:
+      return { error: 'Unknown function: ' + name };
+  }
+}
 </script>
+<div id="tv-overlay" onclick="toggleTVPanel()"></div>
+<div id="tv-panel">
+  <div id="tv-panel-header">
+    <div id="tv-panel-title">
+      <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+      TV Remote
+    </div>
+    <button id="tv-panel-close" onclick="toggleTVPanel()">✕</button>
+  </div>
+
+  <div id="tv-connection-bar">
+    <div class="tv-dot" id="tv-dot"></div>
+    <span class="tv-device-name" id="tv-device-name">Not connected</span>
+    <button class="tv-action scan" id="tv-scan-btn" onclick="scanForTV()">Scan</button>
+    <button class="tv-action" id="tv-disconnect-btn" onclick="disconnectTV()" style="display:none">Disconnect</button>
+  </div>
+
+  <div id="tv-remote-controls" style="display:none">
+    <div class="tv-section-label">Power</div>
+    <div class="tv-remote-row">
+      <button class="tv-remote-btn power" onclick="sendTVCommand('toggle_power')">
+        <svg viewBox="0 0 24 24"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.59-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+        <span class="tv-remote-label">POWER</span>
+      </button>
+    </div>
+
+    <div class="tv-section-label">Navigation</div>
+    <div class="tv-remote-row">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;grid-template-areas:'. up .' 'left ok right' '. down .'">
+        <button class="tv-remote-btn dpad" style="grid-area:up" onclick="sendTVCommand('up')">
+          <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+        </button>
+        <button class="tv-remote-btn dpad" style="grid-area:left" onclick="sendTVCommand('left')">
+          <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <button class="tv-remote-btn dpad ok" style="grid-area:ok" onclick="sendTVCommand('select')"><span>OK</span></button>
+        <button class="tv-remote-btn dpad" style="grid-area:right" onclick="sendTVCommand('right')">
+          <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+        </button>
+        <button class="tv-remote-btn dpad" style="grid-area:down" onclick="sendTVCommand('down')">
+          <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="tv-remote-row" style="gap:5px">
+      <button class="tv-remote-btn" onclick="sendTVCommand('home')">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        <span class="tv-remote-label">HOME</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('back')">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <span class="tv-remote-label">BACK</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('menu')">
+        <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        <span class="tv-remote-label">MENU</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('exit')">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <span class="tv-remote-label">EXIT</span>
+      </button>
+    </div>
+
+    <div class="tv-section-label">Volume</div>
+    <div class="tv-remote-row">
+      <button class="tv-remote-btn" onclick="sendTVCommand('volume_up')">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <span class="tv-remote-label">VOL+</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('volume_down')">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <span class="tv-remote-label">VOL-</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('mute')">
+        <svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        <span class="tv-remote-label">MUTE</span>
+      </button>
+    </div>
+
+    <div class="tv-section-label">Channel</div>
+    <div class="tv-remote-row">
+      <button class="tv-remote-btn" onclick="sendTVCommand('channel_up')">
+        <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+        <span class="tv-remote-label">CH+</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('channel_down')">
+        <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>
+        <span class="tv-remote-label">CH-</span>
+      </button>
+    </div>
+
+    <div class="tv-section-label">Media</div>
+    <div class="tv-remote-row">
+      <button class="tv-remote-btn" onclick="sendTVCommand('rewind')">
+        <svg viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+        <span class="tv-remote-label">REW</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('play')">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span class="tv-remote-label">PLAY</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('pause')">
+        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        <span class="tv-remote-label">PAUSE</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('stop')">
+        <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+        <span class="tv-remote-label">STOP</span>
+      </button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('fast_forward')">
+        <svg viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+        <span class="tv-remote-label">FF</span>
+      </button>
+    </div>
+
+    <div class="tv-section-label">Apps</div>
+    <div class="tv-remote-row">
+      <button class="tv-remote-btn app netflix" onclick="sendTVCommand('netflix')">Netflix</button>
+      <button class="tv-remote-btn app youtube" onclick="sendTVCommand('youtube')">YouTube</button>
+      <button class="tv-remote-btn app prime" onclick="sendTVCommand('prime_video')">Prime</button>
+      <button class="tv-remote-btn app disney" onclick="sendTVCommand('disney_plus')">Disney+</button>
+    </div>
+
+    <div class="tv-section-label">Input</div>
+    <div class="tv-remote-row">
+      <button class="tv-remote-btn" onclick="sendTVCommand('hdmi1')">HDMI 1</button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('hdmi2')">HDMI 2</button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('hdmi3')">HDMI 3</button>
+      <button class="tv-remote-btn" onclick="sendTVCommand('tv_mode')">TV</button>
+    </div>
+  </div>
+  <div id="tv-no-connection">Scan for a Bluetooth TV to enable the remote.</div>
+</div>
+
 </body>
 </html>

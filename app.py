@@ -54,10 +54,69 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
+TV_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "connect_tv",
+            "description": "Scan for nearby Bluetooth TVs. Opens a device picker for the user to select their TV.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "disconnect_tv",
+            "description": "Disconnect from the currently connected Bluetooth TV.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "tv_status",
+            "description": "Check if a TV is currently connected via Bluetooth.",
+            "parameters": {"type": "object", "properties": {}, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "control_tv",
+            "description": "Send a remote control command to the connected Bluetooth TV. TV must be connected first.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": [
+                            "power_on", "power_off", "toggle_power",
+                            "volume_up", "volume_down", "mute", "unmute",
+                            "channel_up", "channel_down",
+                            "home", "back", "menu", "exit",
+                            "up", "down", "left", "right", "select",
+                            "play", "pause", "stop", "rewind", "fast_forward", "record",
+                            "netflix", "youtube", "prime_video", "disney_plus",
+                            "hdmi1", "hdmi2", "hdmi3", "av", "tv_mode", "input"
+                        ],
+                        "description": "The remote control action to perform"
+                    }
+                },
+                "required": ["action"]
+            }
+        }
+    }
+]
+
 
 def call_llm(messages):
     client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
-    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages)
+    resp = client.chat.completions.create(
+        model=LLM_MODEL,
+        messages=messages,
+        tools=TV_TOOLS,
+        tool_choice="auto"
+    )
     return resp.choices[0].message
 
 
@@ -97,7 +156,30 @@ def chat():
 
     try:
         msg = call_llm(msgs)
-        return jsonify({"content": (msg.content or "").strip()})
+
+        if msg.tool_calls:
+            tool_calls_data = []
+            for tc in msg.tool_calls:
+                tool_calls_data.append({
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments
+                    }
+                })
+            return jsonify({
+                "type": "tool_call",
+                "content": msg.content or "",
+                "tool_calls": tool_calls_data,
+                "message": {
+                    "role": "assistant",
+                    "content": msg.content,
+                    "tool_calls": tool_calls_data
+                }
+            })
+
+        return jsonify({"type": "final", "content": (msg.content or "").strip()})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": repr(e)}), 500
