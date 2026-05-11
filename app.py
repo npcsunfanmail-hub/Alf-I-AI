@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(__file__)
 
-SYSTEM_PROMPT = "You are a helpful AI assistant. You can browse the web to fetch information. Be concise."
+SYSTEM_PROMPT = "You are Alf-I, a helpful AI assistant. You talk with a friendly and slightly playful personality. You can browse the web to fetch information. Be concise."
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
