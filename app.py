@@ -7,7 +7,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+BASE_DIR = os.path.dirname(__file__)
 
 SYSTEM_PROMPT = "You are a helpful AI assistant. You can browse the web to fetch information. Be concise."
 
