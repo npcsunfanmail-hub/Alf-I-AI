@@ -193,4 +193,5 @@ def chat():
         return jsonify({"content": content.strip()})
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": repr(e)}), 500
+        body = getattr(e, "body", None) or getattr(e, "response", None) or ""
+        return jsonify({"error": repr(e), "detail": str(body)[:500]}), 500
