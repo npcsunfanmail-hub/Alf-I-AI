@@ -25,8 +25,8 @@
   @keyframes pupilDrift { 0%, 100% { transform: translateX(0px); } 30% { transform: translateX(-4px); } 70% { transform: translateX(4px); } }
 
   #mouth-area { display: flex; align-items: center; justify-content: center; }
-  #mouth { width: min(24vw, 100px); height: min(2vw, 8px); background: white; border-radius: min(0.8vw, 3px); transition: all 0.15s ease; box-shadow: 0 0 24px rgba(255,255,255,0.08); }
-  #mouth.open { width: min(28vw, 118px); height: min(5vw, 22px); background: #0a0a2e; border: min(0.3vw, 1.5px) solid rgba(255,255,255,0.7); border-radius: min(1.2vw, 5px); }
+  #mouth { width: min(24vw, 100px); height: min(2vw, 8px); background: white; border-radius: min(0.8vw, 3px); transition: width 0.15s ease, background 0.1s, border 0.1s; box-shadow: 0 0 24px rgba(255,255,255,0.08); }
+  #mouth.open { width: min(28vw, 118px); background: #0a0a2e; border: min(0.3vw, 1.5px) solid rgba(255,255,255,0.7); border-radius: min(1.2vw, 5px); }
 
   #name-label { color: rgba(255,255,255,0.12); font-size: min(2.8vw, 13px); font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-top: min(4vw, 18px); pointer-events: none; }
   #status-text { color: rgba(255,255,255,0.4); font-size: min(3.2vw, 14px); text-align: center; padding: min(2vw, 10px); letter-spacing: 1px; }
@@ -102,6 +102,8 @@ let isSpeaking = false;
 let recognition = null;
 let blinkTimer = null;
 let browTimer = null;
+let mouthAnimFrame = null;
+let mouthStart = 0;
 
 function blinkEyes() {
   leftEye.classList.add('blink');
@@ -127,15 +129,42 @@ function animateBrows() {
 }
 animateBrows();
 
+function startMouthAnimation() {
+  mouth.classList.add('open');
+  mouthStart = performance.now();
+
+  function step(time) {
+    if (!isSpeaking) return;
+    const t = (time - mouthStart) / 1000;
+    const freq = 5 + Math.sin(t * 0.5) * 2;
+    const raw = Math.sin(t * freq * Math.PI * 2);
+    const openness = 0.5 + 0.5 * raw;
+    const clamped = 0.15 + openness * 0.85;
+    const minH = 7, maxH = 22;
+    const h = minH + clamped * (maxH - minH);
+    mouth.style.height = h.toFixed(1) + 'px';
+    mouthAnimFrame = requestAnimationFrame(step);
+  }
+  mouthAnimFrame = requestAnimationFrame(step);
+}
+
+function stopMouthAnimation() {
+  isSpeaking = false;
+  if (mouthAnimFrame) { cancelAnimationFrame(mouthAnimFrame); mouthAnimFrame = null; }
+  mouth.classList.remove('open');
+  mouth.style.height = '';
+}
+
 function setSpeaking(val) {
   isSpeaking = val;
-  mouth.classList.toggle('open', val);
   if (val) {
     leftBrow.classList.add('raise');
     rightBrow.classList.add('raise');
+    startMouthAnimation();
   } else {
     leftBrow.classList.remove('raise');
     rightBrow.classList.remove('raise');
+    stopMouthAnimation();
   }
 }
 
@@ -166,6 +195,17 @@ function toggleTTS() {
   ttsBtn.classList.toggle('active');
 }
 
+function findVoice() {
+  const vs = window.speechSynthesis.getVoices();
+  if (!vs.length) return null;
+  const isFemale = n => /female|zoe|vanessa|karen|natya|fiona|catherine|serena|tracy|moira|samantha|victoria|tessa|ava/i.test(n);
+  let v = vs.find(v => v.lang.startsWith('en-AU') && isFemale(v.name));
+  if (!v) v = vs.find(v => v.lang.startsWith('en-AU'));
+  if (!v) v = vs.find(v => v.lang.startsWith('en-GB') && isFemale(v.name));
+  if (!v) v = vs.find(v => v.lang.startsWith('en-GB'));
+  return v;
+}
+
 function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
@@ -175,12 +215,8 @@ function speak(text) {
   u.onstart = () => setSpeaking(true);
   u.onend = () => setSpeaking(false);
   u.onerror = () => setSpeaking(false);
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length > 0) {
-    let v = voices.find(v => v.lang.startsWith('en-AU'));
-    if (!v) v = voices.find(v => v.lang.startsWith('en-GB'));
-    if (v) u.voice = v;
-  }
+  const voice = findVoice();
+  if (voice) u.voice = voice;
   window.speechSynthesis.speak(u);
 }
 
