@@ -97,6 +97,13 @@
   .tv-remote-label { font-size:8px; color:rgba(255,255,255,0.35); letter-spacing:0.3px; }
   #tv-no-connection { text-align:center; padding:20px; color:rgba(255,255,255,0.25); font-size:12px; }
   #tv-scan-results { margin-bottom:8px; }
+  #tv-network-form { display:none; padding:4px 0 8px; border-top:1px solid rgba(255,255,255,0.06); margin-top:4px; padding-top:8px; }
+  #tv-network-form .row { display:flex; gap:6px; align-items:center; }
+  #tv-network-form input { flex:1; min-width:0; background:rgba(255,255,255,0.08); border:none; border-radius:6px; color:white; padding:8px 10px; font-size:13px; outline:none; }
+  #tv-network-form input::placeholder { color:rgba(255,255,255,0.25); }
+  #tv-network-form select { background:rgba(255,255,255,0.08); border:none; border-radius:6px; color:white; padding:7px 8px; font-size:12px; outline:none; cursor:pointer; }
+  #tv-network-form select option { background:#1a1a4e; color:white; }
+  #tv-network-form .hint { display:block; color:rgba(255,255,255,0.2); font-size:10px; margin-top:4px; }
   #tv-device-list { display:flex; flex-direction:column; gap:4px; padding:4px 0; }
   #tv-device-list .device-btn { width:100%; background:rgba(255,255,255,0.06); border:none; border-radius:8px; color:rgba(255,255,255,0.8); padding:10px 12px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .1s; }
   #tv-device-list .device-btn:active { background:rgba(255,255,255,0.12); }
@@ -685,10 +692,150 @@ class TVBluetoothRemote {
 }
 
 const tvRemote = new TVBluetoothRemote();
+let tvConnectionMode = null; // null | 'ble' | 'network'
+
+class NetworkTVControl {
+  constructor() {
+    this.ws = null; this.connected = false; this.ip = ''; this.brand = 'samsung'; this.deviceName = '';
+    this._pairKey = '';
+  }
+
+  async connect(ip, brand) {
+    this.ip = ip; this.brand = brand; this.deviceName = ip + ' (' + brand.toUpperCase() + ')';
+    if (brand === 'samsung') return this._connectSamsung(ip);
+    if (brand === 'lg') return this._connectLG(ip);
+    if (brand === 'roku') { this.connected = true; return { success: true, brand: 'roku', ip }; }
+    return { success: false, error: 'Unknown brand' };
+  }
+
+  async _connectSamsung(ip) {
+    return new Promise((resolve) => {
+      try {
+        const appName = btoa('Alf-I AI');
+        const ws = new WebSocket('ws://' + ip + ':8002/api/v2/channels/samsung.remote.control?name=' + appName);
+        ws.onopen = () => { this.connected = true; this.ws = ws; this._onStatusChange(); resolve({ success: true, brand: 'samsung', ip }); };
+        ws.onerror = () => resolve({ success: false, error: 'Cannot connect. Make sure TV is on and IP is correct.' });
+        ws.onclose = () => { this.connected = false; this.ws = null; this._onStatusChange(); };
+        setTimeout(() => { if (!this.connected) { try { ws.close(); } catch (e) {} resolve({ success: false, error: 'Connection timeout.' }); } }, 5000);
+      } catch (e) { resolve({ success: false, error: e.message }); }
+    });
+  }
+
+  async _connectLG(ip) {
+    return new Promise((resolve) => {
+      try {
+        const ws = new WebSocket('ws://' + ip + ':3000/');
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            type: 'register', payload: { forcePairing: false, pairingType: 'PROMPT',
+              manifest: { manifestVersion: 1, appVersion: '1.0',
+                signed: { created: new Date().toISOString(), appId: 'com.alfi.remote', vendorId: 'com.alfi',
+                  localizedAppNames: {'': 'Alf-I'} },
+                permissions: ['CONTROL_INPUT_TEXT','CONTROL_MOUSE_AND_KEYBOARD','CONTROL_AUDIO','CONTROL_POWER'] } } }));
+        };
+        ws.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'response' && msg.payload?.clientKey) {
+              this.connected = true; this.ws = ws; this._onStatusChange();
+              resolve({ success: true, brand: 'lg', ip });
+            }
+          } catch (e) {}
+        };
+        ws.onerror = () => resolve({ success: false, error: 'Cannot connect. Check TV for pairing prompt.' });
+        ws.onclose = () => { this.connected = false; this.ws = null; this._onStatusChange(); };
+        setTimeout(() => { if (!this.connected) { try { ws.close(); } catch (e) {} resolve({ success: false, error: 'Connection timeout. Check TV for pairing prompt.' }); } }, 10000);
+      } catch (e) { resolve({ success: false, error: e.message }); }
+    });
+  }
+
+  async sendCommand(action) {
+    if (!this.connected) return { success: false, error: 'Not connected' };
+    if (this.brand === 'samsung') return this._sendSamsung(action);
+    if (this.brand === 'lg') return this._sendLG(action);
+    if (this.brand === 'roku') return this._sendRoku(action);
+    return { success: false, error: 'Unknown brand' };
+  }
+
+  _sendSamsung(action) {
+    const keyMap = {
+      toggle_power:'KEY_POWER', power_on:'KEY_POWER', power_off:'KEY_POWER',
+      volume_up:'KEY_VOLUP', volume_down:'KEY_VOLDOWN', mute:'KEY_MUTE',
+      channel_up:'KEY_CHUP', channel_down:'KEY_CHDOWN',
+      home:'KEY_HOME', back:'KEY_RETURN', menu:'KEY_MENU', exit:'KEY_EXIT',
+      up:'KEY_UP', down:'KEY_DOWN', left:'KEY_LEFT', right:'KEY_RIGHT', select:'KEY_ENTER',
+      play:'KEY_PLAY', pause:'KEY_PAUSE', stop:'KEY_STOP',
+      rewind:'KEY_REWIND', fast_forward:'KEY_FF', record:'KEY_RECORD',
+      hdmi1:'KEY_HDMI1', hdmi2:'KEY_HDMI2', hdmi3:'KEY_HDMI3',
+      netflix:'KEY_NETFLIX', youtube:'KEY_YOUTUBE', prime_video:'KEY_PRIME',
+      disney_plus:'KEY_DISNEY_PLUS', input:'KEY_SOURCE', tv_mode:'KEY_TV'
+    };
+    const key = keyMap[action];
+    if (!key) return { success: false, error: 'Unknown action' };
+    try {
+      this.ws.send(JSON.stringify({ method:'ms.remote.control', params:{ Cmd:'Click', DataOfCmd:key, Option:'false', TypeOfRemote:'SendRemoteKey' } }));
+      return { success: true, action };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  _sendLG(action) {
+    const uriMap = {
+      toggle_power:'ssap://system/turnOff', power_off:'ssap://system/turnOff',
+      volume_up:'ssap://audio/volumeUp', volume_down:'ssap://audio/volumeDown', mute:'ssap://audio/setMute',
+      home:'ssap://system.launcher/open', back:'ssap://system/back',
+      play:'ssap://media.controls/play', pause:'ssap://media.controls/pause',
+      stop:'ssap://media.controls/stop', rewind:'ssap://media.controls/rewind',
+      fast_forward:'ssap://media.controls/fastForward',
+      netflix:'ssap://system.launcher/launch?appId=netflix', youtube:'ssap://system.launcher/launch?appId=youtube.leanback.v4'
+    };
+    const uri = uriMap[action];
+    if (!uri) return { success: false, error: 'Action not supported on LG' };
+    try {
+      this.ws.send(JSON.stringify({ type:'request', uri, payload:{} }));
+      return { success: true, action };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  async _sendRoku(action) {
+    const keyMap = {
+      toggle_power:'PowerOff', power_off:'PowerOff',
+      volume_up:'VolumeUp', volume_down:'VolumeDown', mute:'VolumeMute',
+      home:'Home', back:'Back', menu:'Info',
+      up:'Up', down:'Down', left:'Left', right:'Right', select:'Select',
+      play:'Play', pause:'Play', stop:'Stop',
+      rewind:'Rewind', fast_forward:'FastForward',
+      netflix:'Netflix', youtube:'YouTube',
+      hdmi1:'InputHDMI1', hdmi2:'InputHDMI2', hdmi3:'InputHDMI3', tv_mode:'InputTuner'
+    };
+    const key = keyMap[action];
+    if (!key) return { success: false, error: 'Unknown action' };
+    try {
+      const res = await fetch('http://' + this.ip + ':8060/keypress/' + key, { method:'POST' });
+      return { success: res.ok, action };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  disconnect() {
+    if (this.ws) { try { this.ws.close(); } catch (e) {} this.ws = null; }
+    this.connected = false; this.ip = ''; this.deviceName = '';
+  }
+
+  getStatus() {
+    return { connected: this.connected, device_name: this.ip + ' (' + this.brand.toUpperCase() + ')', brand: this.brand, ip: this.ip };
+  }
+
+  _onStatusChange() {
+    updateTVStatusBar();
+    updateTVRemoteUI();
+  }
+}
+
+const tvNetwork = new NetworkTVControl();
 
 function updateTVStatusBar() {
   const el = document.getElementById('tv-status-text');
-  if (tvRemote.connected) { el.textContent = tvRemote.deviceName; el.className = 'connected'; }
+  if (tvNetwork.connected) { el.textContent = tvNetwork.deviceName; el.className = 'connected'; }
+  else if (tvRemote.connected) { el.textContent = tvRemote.deviceName; el.className = 'connected'; }
   else if (tvRemote.device) { el.textContent = 'Tap to connect'; el.className = ''; }
   else { el.textContent = 'No TV Connected'; el.className = ''; }
 }
@@ -697,26 +844,32 @@ function updateTVRemoteUI() {
   const dot = document.getElementById('tv-dot');
   const name = document.getElementById('tv-device-name');
   const scanBtn = document.getElementById('tv-scan-btn');
+  const netBtn = document.getElementById('tv-net-btn');
   const discBtn = document.getElementById('tv-disconnect-btn');
   const ctrls = document.getElementById('tv-remote-controls');
   const noConn = document.getElementById('tv-no-connection');
-  if (tvRemote.connected) {
+  if (tvNetwork.connected) {
+    dot.className = 'tv-dot connected';
+    name.textContent = tvNetwork.deviceName;
+    scanBtn.style.display = 'none'; netBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
+    ctrls.style.display = 'block'; noConn.style.display = 'none';
+  } else if (tvRemote.connected) {
     dot.className = 'tv-dot connected';
     name.textContent = tvRemote.deviceName;
-    scanBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
+    scanBtn.style.display = 'none'; netBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
     ctrls.style.display = 'block'; noConn.style.display = 'none';
   } else if (tvRemote.device) {
     dot.className = 'tv-dot';
     name.textContent = tvRemote.deviceName + ' (disconnected)';
-    scanBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
+    scanBtn.style.display = 'none'; netBtn.style.display = 'inline-block'; discBtn.style.display = 'inline-block';
     ctrls.style.display = 'none'; noConn.style.display = 'block';
     noConn.textContent = 'Device disconnected. Tap Disconnect to remove.';
   } else {
     dot.className = 'tv-dot';
     name.textContent = 'Not connected';
-    scanBtn.style.display = 'inline-block'; discBtn.style.display = 'none';
+    scanBtn.style.display = 'inline-block'; netBtn.style.display = 'inline-block'; discBtn.style.display = 'none';
     ctrls.style.display = 'none'; noConn.style.display = 'block';
-    noConn.textContent = 'Scan for a Bluetooth TV to enable the remote.';
+    noConn.textContent = 'Connect via Bluetooth (BLE) or WiFi Network (NET) above.';
   }
 }
 
@@ -726,15 +879,48 @@ async function scanForTV() {
 }
 
 async function disconnectTV() {
-  await tvRemote.disconnect(); setStatus('TV DISCONNECTED');
+  if (tvNetwork.connected) { tvNetwork.disconnect(); tvConnectionMode = null; }
+  if (tvRemote.connected) await tvRemote.disconnect();
+  tvConnectionMode = null;
+  updateTVStatusBar(); updateTVRemoteUI();
+  setStatus('DISCONNECTED');
 }
 
 async function sendTVCommand(action) {
-  if (!tvRemote.connected) { setStatus('TV NOT CONNECTED'); return; }
-  setStatus('TV: ' + action);
-  const r = await tvRemote.sendCommand(action);
-  if (!r.success) setStatus('TV ERR: ' + (r.error || 'failed'));
-  else setTimeout(() => setStatus('READY'), 800);
+  if (tvNetwork.connected) {
+    setStatus('TV: ' + action);
+    const r = await tvNetwork.sendCommand(action);
+    if (!r.success) setStatus('TV ERR: ' + (r.error || 'failed'));
+    else setTimeout(() => setStatus('READY'), 800);
+  } else if (tvRemote.connected) {
+    setStatus('TV: ' + action);
+    const r = await tvRemote.sendCommand(action);
+    if (!r.success) setStatus('TV ERR: ' + (r.error || 'failed'));
+    else setTimeout(() => setStatus('READY'), 800);
+  } else {
+    setStatus('TV NOT CONNECTED');
+  }
+}
+
+function toggleNetworkForm() {
+  const f = document.getElementById('tv-network-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function connectNetworkTV() {
+  const ip = document.getElementById('tv-ip-input').value.trim();
+  if (!ip) { setStatus('ENTER TV IP'); return; }
+  const brand = document.getElementById('tv-brand-select').value;
+  setStatus('CONNECTING...');
+  const r = await tvNetwork.connect(ip, brand);
+  if (r.success) {
+    tvConnectionMode = 'network';
+    document.getElementById('tv-network-form').style.display = 'none';
+    updateTVStatusBar(); updateTVRemoteUI();
+    setStatus('READY');
+  } else {
+    setStatus('NET ERR: ' + (r.error || 'failed'));
+  }
 }
 
 function showDiscoveredDevices(devices) {
@@ -774,17 +960,21 @@ async function executeToolCall(tc) {
   try { args = JSON.parse(tc.function.arguments); } catch (e) {}
   switch (name) {
     case 'connect_tv':
-      if (tvRemote.connected) return { success: true, already_connected: true, device: tvRemote.deviceName };
+      if (tvNetwork.connected || tvRemote.connected) {
+        return { success: true, already_connected: true, device: tvNetwork.connected ? tvNetwork.deviceName : tvRemote.deviceName };
+      }
       if (!tvRemotePanelOpen) toggleTVPanel();
       if (tvRemote.isNative) { scanForTV(); return { success: false, action_required: 'select_device', message: 'Scanning for nearby TVs...' }; }
-      return { success: false, action_required: 'scan', message: 'Tap the Scan button in the TV Remote panel to find your TV' };
+      return { success: false, action_required: 'scan', message: 'Connect via BLE (Scan) or enter TV IP in the Network section.' };
     case 'disconnect_tv':
-      await tvRemote.disconnect(); return { success: true };
+      disconnectTV(); return { success: true };
     case 'tv_status':
+      if (tvNetwork.connected) return tvNetwork.getStatus();
       return tvRemote.getStatus();
     case 'control_tv':
-      if (!tvRemote.connected) return { success: false, error: 'No TV connected. Ask user to scan first.' };
-      return await tvRemote.sendCommand(args.action);
+      if (tvNetwork.connected) return await tvNetwork.sendCommand(args.action);
+      if (tvRemote.connected) return await tvRemote.sendCommand(args.action);
+      return { success: false, error: 'No TV connected. Open the TV Remote panel to connect.' };
     default:
       return { error: 'Unknown function: ' + name };
   }
@@ -803,8 +993,22 @@ async function executeToolCall(tc) {
   <div id="tv-connection-bar">
     <div class="tv-dot" id="tv-dot"></div>
     <span class="tv-device-name" id="tv-device-name">Not connected</span>
-    <button class="tv-action scan" id="tv-scan-btn" onclick="scanForTV()">Scan</button>
+    <button class="tv-action scan" id="tv-scan-btn" onclick="scanForTV()" title="Bluetooth">BLE</button>
+    <button class="tv-action" id="tv-net-btn" onclick="toggleNetworkForm()" title="WiFi Network">NET</button>
     <button class="tv-action" id="tv-disconnect-btn" onclick="disconnectTV()" style="display:none">Disconnect</button>
+  </div>
+
+  <div id="tv-network-form">
+    <div class="row">
+      <input type="text" id="tv-ip-input" placeholder="TV IP (e.g. 192.168.1.100)">
+      <select id="tv-brand-select">
+        <option value="samsung">Samsung</option>
+        <option value="lg">LG</option>
+        <option value="roku">Roku</option>
+      </select>
+      <button class="tv-action scan" id="tv-net-connect-btn" onclick="connectNetworkTV()">Go</button>
+    </div>
+    <span class="hint">TV must be on the same WiFi network. Check your router for the TV's IP.</span>
   </div>
 
   <div id="tv-scan-results" style="display:none">
