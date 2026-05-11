@@ -175,7 +175,21 @@ def chat():
         tool_calls = getattr(msg, "tool_calls", None) or []
 
         if tool_calls:
-            msgs.append({"role": "assistant", "content": content})
+            msgs.append({
+                "role": "assistant",
+                "content": content or None,
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments
+                        }
+                    }
+                    for tc in tool_calls
+                ]
+            })
             for tc in tool_calls:
                 name = tc.function.name
                 args = json.loads(tc.function.arguments)
