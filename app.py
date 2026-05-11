@@ -48,7 +48,10 @@ def save_history(user_id, history):
     conn.close()
 
 
-init_db()
+try:
+    init_db()
+except Exception:
+    pass
 
 SYSTEM_PROMPT = """Your name is Alf-I. You are an AI assistant created by Logan Robinson.
 
@@ -285,3 +288,5 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": repr(e)}), 500
+
+application = app
