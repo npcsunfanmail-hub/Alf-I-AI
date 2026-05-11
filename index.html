@@ -38,9 +38,6 @@
 
   #name-label { color: rgba(255,255,255,0.12); font-size: min(2.8vw, 13px); font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-top: min(4vw, 18px); pointer-events: none; }
   #status-text { color: rgba(255,255,255,0.4); font-size: min(3.2vw, 14px); text-align: center; padding: min(2vw, 10px); letter-spacing: 1px; }
-  #user-id-label { color: rgba(255,255,255,0.15); font-size: min(2.2vw, 10px); text-align: center; cursor: pointer; user-select: none; padding: 0 0 min(1vw, 6px); letter-spacing: 0.5px; transition: color 0.2s; }
-  #user-id-label:hover { color: rgba(255,255,255,0.4); }
-  #user-id-label.copied { color: #4fc3f7; }
   #bottom-area { flex-shrink: 0; padding: min(3vw, 14px) min(4vw, 20px) max(env(safe-area-inset-bottom, 8px), min(4vw, 20px)); background: rgba(255,255,255,0.03); border-top: 1px solid rgba(255,255,255,0.06); }
   #input-row { display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,0.08); border-radius: 24px; padding: 4px 4px 4px 14px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   #input { flex: 1; min-width: 0; background: none; border: none; color: white; font-size: 16px; outline: none; padding: 9px 0; }
@@ -78,7 +75,6 @@
       <div id="name-label">ALF-I</div>
     </div>
     <div id="status-text">READY</div>
-    <div id="user-id-label" onclick="copyUserId()" title="Tap to copy user ID">ID: <span id="user-id-display"></span></div>
   </div>
   <div id="bottom-area">
     <div id="input-row">
@@ -102,7 +98,6 @@
 <script>
 const input = document.getElementById('input');
 const statusEl = document.getElementById('status-text');
-const userIdDisplay = document.getElementById('user-id-display');
 const voiceBtn = document.getElementById('voice-btn');
 const ttsBtn = document.getElementById('tts-toggle');
 const mouth = document.getElementById('mouth');
@@ -113,7 +108,6 @@ const rightBrow = document.getElementById('right-brow');
 
 let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
 localStorage.setItem('alfi_user_id', userId);
-if (userIdDisplay) userIdDisplay.textContent = userId.slice(0, 8) + '...';
 let history = [];
 
 async function loadHistory() {
@@ -352,40 +346,10 @@ function saveHistory() {
 
 function setStatus(msg) { statusEl.textContent = msg; }
 
-async function switchUser(targetId) {
-  setStatus('SAVING...');
-  await saveHistory();
-  setStatus('LOADING...');
-  try {
-    const res = await fetch('/api/sync?user_id=' + encodeURIComponent(targetId));
-    const data = await res.json();
-    console.log('Switch: API returned', data.history ? data.history.length + ' messages' : 'null');
-    if (data.history && data.history.length) {
-      history = data.history;
-      userId = targetId;
-      localStorage.setItem('alfi_user_id', userId);
-      localStorage.setItem('alfi_history', JSON.stringify(history));
-      if (userIdDisplay) userIdDisplay.textContent = userId.slice(0, 8) + '...';
-      setStatus('SWITCHED');
-    } else {
-      setStatus('NOT FOUND');
-    }
-  } catch (e) {
-    console.log('Switch error:', e);
-    setStatus('SYNC ERROR');
-  }
-}
-
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
-
-  const idMatch = text.match(/^ID:\s*(\S+)/i);
-  if (idMatch) {
-    await switchUser(idMatch[1]);
-    return;
-  }
 
   if (text.toUpperCase() === 'EXPORT') {
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(history))));
@@ -444,18 +408,6 @@ async function sendMessage() {
     stopThinking();
     setStatus('CONNECTION ERROR');
   }
-}
-
-function copyUserId() {
-  navigator.clipboard.writeText(userId).then(() => {
-    const label = document.getElementById('user-id-label');
-    label.textContent = 'Copied!';
-    label.classList.add('copied');
-    setTimeout(() => {
-      label.textContent = 'ID: ' + userId.slice(0, 8) + '...';
-      label.classList.remove('copied');
-    }, 1500);
-  }).catch(() => {});
 }
 
 function resetConversation() {
