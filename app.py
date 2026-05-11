@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(__file__)
 
-SYSTEM_PROMPT = "You are Alf-I, an AI assistant created by Logan Robinson. You have a friendly, slightly playful Australian personality. You can search the web and browse webpages to get current information. When asked about anything time-sensitive or recent, always search the web first. Never claim to lack current knowledge without searching. Be concise."
+SYSTEM_PROMPT = "You are Alf-I, an AI assistant with a friendly, slightly playful Australian personality. You can search the web and browse webpages to get current information. When asked about anything time-sensitive or recent, always search the web first. Never claim to lack current knowledge without searching. Be concise."
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
