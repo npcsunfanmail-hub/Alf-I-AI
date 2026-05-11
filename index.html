@@ -2,15 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Alf-I</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a2e; display: flex; justify-content: center; align-items: center; }
-  #app { width: 100%; max-width: 500px; height: 100dvh; background: linear-gradient(180deg, #1a1a4e 0%, #0d0d3a 40%, #0a0a2e 100%); display: flex; flex-direction: column; position: relative; }
-  #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; min-height: 0; }
-  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(5vw, 22px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a2e; display: flex; justify-content: center; align-items: center; -webkit-text-size-adjust: 100%; }
+  #app { width: 100%; max-width: 500px; height: 100dvh; background: linear-gradient(180deg, #1a1a4e 0%, #0d0d3a 40%, #0a0a2e 100%); display: flex; flex-direction: column; position: relative; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; min-height: 0; }
+  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(4.5vw, 20px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s; }
   @keyframes faceIdle { 0%, 100% { transform: translateY(0px) rotate(0deg); } 25% { transform: translateY(-6px) rotate(1.2deg); } 50% { transform: translateY(-10px) rotate(0deg); } 75% { transform: translateY(-6px) rotate(-1.2deg); } }
   #face.thinking { animation: faceThink 4s ease-in-out infinite; }
   @keyframes faceThink { 0%, 100% { transform: translateY(-3px) rotate(0.5deg); } 50% { transform: translateY(-8px) rotate(-0.5deg); } }
@@ -36,14 +38,14 @@
 
   #name-label { color: rgba(255,255,255,0.12); font-size: min(2.8vw, 13px); font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-top: min(4vw, 18px); pointer-events: none; }
   #status-text { color: rgba(255,255,255,0.4); font-size: min(3.2vw, 14px); text-align: center; padding: min(2vw, 10px); letter-spacing: 1px; }
-  #bottom-area { flex-shrink: 0; padding: min(4vw, 20px) min(5vw, 24px) min(6vw, 30px); background: rgba(255,255,255,0.03); border-top: 1px solid rgba(255,255,255,0.06); }
-  #input-row { display: flex; gap: min(2vw, 10px); align-items: center; background: rgba(255,255,255,0.08); border-radius: min(6vw, 28px); padding: min(1.5vw, 6px) min(1.5vw, 6px) min(1.5vw, 6px) min(5vw, 20px); backdrop-filter: blur(10px); }
-  #input { flex: 1; background: none; border: none; color: white; font-size: min(4vw, 16px); outline: none; padding: min(2.5vw, 10px) 0; }
+  #bottom-area { flex-shrink: 0; padding: min(3vw, 14px) min(4vw, 20px) max(env(safe-area-inset-bottom, 8px), min(4vw, 20px)); background: rgba(255,255,255,0.03); border-top: 1px solid rgba(255,255,255,0.06); }
+  #input-row { display: flex; gap: min(2vw, 10px); align-items: center; background: rgba(255,255,255,0.08); border-radius: min(6vw, 28px); padding: min(1.5vw, 6px) min(1.5vw, 6px) min(1.5vw, 6px) min(4vw, 18px); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #input { flex: 1; background: none; border: none; color: white; font-size: 16px; outline: none; padding: min(2.5vw, 11px) 0; }
   #input::placeholder { color: rgba(255,255,255,0.3); }
-  .icon-btn { background: none; border: none; cursor: pointer; width: min(12vw, 48px); height: min(12vw, 48px); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s; }
-  .icon-btn svg { width: min(6vw, 24px); height: min(6vw, 24px); fill: rgba(255,255,255,0.6); }
-  .icon-btn:hover { background: rgba(255,255,255,0.1); }
-  .icon-btn:hover svg { fill: white; }
+  .icon-btn { background: none; border: none; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s; }
+  .icon-btn svg { width: 24px; height: 24px; fill: rgba(255,255,255,0.6); }
+  .icon-btn:active { background: rgba(255,255,255,0.15); }
+  .icon-btn:active svg { fill: white; }
   #voice-btn.listening { background: #ea4335; animation: pulse 1s infinite; }
   #voice-btn.listening svg { fill: white; }
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
