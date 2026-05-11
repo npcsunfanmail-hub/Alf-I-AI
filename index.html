@@ -164,9 +164,9 @@
       </div>
     </div>
     <div id="tv-grid">
-      <button class="tv-key power" onclick="tvSend('PowerOff')">⏻</button>
-      <button class="tv-key" onclick="tvSend('Input')">HDMI</button>
-      <button class="tv-key" onclick="tvSend('Menu')">Menu</button>
+      <button class="tv-key power" onclick="tvSend('PowerOff')" title="Toggle Power">⏻</button>
+      <button class="tv-key" onclick="tvSend('Input')" title="Input/Source">HDMI</button>
+      <button class="tv-key" onclick="tvSend('Menu')" title="Menu">Menu</button>
 
       <div></div>
       <button class="tv-key dpad" onclick="tvSend('Up')">▲</button>
@@ -190,8 +190,11 @@
 
       <button class="tv-key" onclick="tvSend('Home')">Home</button>
       <button class="tv-key" onclick="tvSend('Back')">Back</button>
+      <button class="tv-key" onclick="tvSend('Exit')">Exit</button>
+
       <button class="tv-key" onclick="tvSend('Netflix')">Netflix</button>
       <button class="tv-key" onclick="tvSend('YouTube')">YT</button>
+      <button class="tv-key" onclick="tvSend('PrimeVideo')">Prime</button>
     </div>
     <div id="tv-feedback"></div>
   </div>
@@ -596,7 +599,7 @@ const SAMSUNG_KEYS = {
   Mute:'KEY_MUTE',Play:'KEY_PLAY',Pause:'KEY_PAUSE',Home:'KEY_HOME',Back:'KEY_RETURN',
   Up:'KEY_UP',Down:'KEY_DOWN',Left:'KEY_LEFT',Right:'KEY_RIGHT',Select:'KEY_ENTER',
   Netflix:'KEY_NETFLIX',YouTube:'KEY_YOUTUBE',Input:'KEY_SOURCE',Menu:'KEY_MENU',
-  Rev:'KEY_REWIND',Fwd:'KEY_FF'
+  Rev:'KEY_REWIND',Fwd:'KEY_FF',Exit:'KEY_EXIT',PrimeVideo:'KEY_PRMSRC'
 };
 
 const LG_KEYS = {
@@ -604,7 +607,7 @@ const LG_KEYS = {
   Mute:'MUTE',Play:'PLAY',Pause:'PAUSE',Home:'HOME',Back:'BACK',
   Up:'UP',Down:'DOWN',Left:'LEFT',Right:'RIGHT',Select:'OK',
   Netflix:'NETFLIX',YouTube:'YOUTUBE',Input:'EXTERNAL_INPUT',Menu:'MENU',
-  Rev:'REWIND',Fwd:'FASTFORWARD'
+  Rev:'REWIND',Fwd:'FASTFORWARD',Exit:'EXIT',PrimeVideo:'AMAZON'
 };
 
 class TVController {
@@ -1289,7 +1292,7 @@ async function executeToolCall(tc) {
       return { connected: false };
     case 'control_tv':
       if (tvController.getCurrent()) {
-        const actionToKey = {power_on:'PowerOn',power_off:'PowerOff',toggle_power:'PowerOff',volume_up:'VolumeUp',volume_down:'VolumeDown',mute:'Mute',unmute:'Mute',channel_up:'ChannelUp',channel_down:'ChannelDown',home:'Home',back:'Back',menu:'Menu',exit:'Exit',up:'Up',down:'Down',left:'Left',right:'Right',select:'Select',play:'Play',pause:'Pause',stop:'Stop',rewind:'Rev',fast_forward:'Fwd',record:'Record',netflix:'Netflix',youtube:'YouTube',prime_video:'Netflix',disney_plus:'Netflix',hdmi1:'Input',hdmi2:'Input',hdmi3:'Input',av:'Input',tv_mode:'Input',input:'Input'};
+        const actionToKey = {power_on:'PowerOn',power_off:'PowerOff',toggle_power:'PowerOff',volume_up:'VolumeUp',volume_down:'VolumeDown',mute:'Mute',unmute:'Mute',channel_up:'ChannelUp',channel_down:'ChannelDown',home:'Home',back:'Back',menu:'Menu',exit:'Exit',up:'Up',down:'Down',left:'Left',right:'Right',select:'Select',play:'Play',pause:'Pause',stop:'Stop',rewind:'Rev',fast_forward:'Fwd',record:'Record',netflix:'Netflix',youtube:'YouTube',prime_video:'PrimeVideo',disney_plus:'Netflix',hdmi1:'Input',hdmi2:'Input',hdmi3:'Input',av:'Input',tv_mode:'Input',input:'Input'};
         const key = args.key || actionToKey[args.action] || args.action;
         return await tvController.sendCommand(tvController.getCurrent().brand, tvController.getCurrent().ip, key);
       }
@@ -1384,21 +1387,35 @@ function saveTv() {
 
 async function scanTvs() {
   const scanResult = document.getElementById('tv-scan-result');
-  scanResult.innerHTML = 'Scanning network for Roku devices...';
+  scanResult.innerHTML = 'Scanning network for TVs...';
 
-  try {
-    const res = await fetch('/api/tv/discover', { method: 'POST' });
-    const data = await res.json();
-    if (data.tvs && data.tvs.length) {
-      scanResult.innerHTML = data.tvs.map(t =>
-        `<div class="found">Found: ${t.name} at ${t.ip}</div>`
-      ).join('');
-      document.getElementById('tv-ip-input').value = data.tvs[0].ip;
-    } else {
-      scanResult.innerHTML = '<div class="none">No Roku TVs found. Enter IP manually.</div>';
+  let localIp = await getLocalIP();
+  let subnet = null;
+  if (localIp) { const p = localIp.split('.'); subnet = p[0] + '.' + p[1] + '.' + p[2]; }
+  const subnets = subnet ? [subnet] : ['192.168.0', '192.168.1', '10.0.0'];
+  const found = []; const seen = new Set();
+
+  for (const sn of subnets) {
+    const ips = [];
+    for (let i = 1; i <= 254; i++) ips.push(sn + '.' + i);
+    for (let s = 0; s < ips.length; s += 15) {
+      const results = await Promise.all(ips.slice(s, s + 15).map(ip => probeTV(ip)));
+      for (const r of results) {
+        if (r && !seen.has(r.ip)) { seen.add(r.ip); found.push(r); }
+      }
+      if (found.length > 0) break;
     }
-  } catch (e) {
-    scanResult.innerHTML = '<div class="none">Scan failed. Enter IP manually.</div>';
+    if (found.length > 0) break;
+  }
+
+  if (found.length > 0) {
+    scanResult.innerHTML = found.map(t =>
+      `<div class="found" style="cursor:pointer" onclick="document.getElementById('tv-ip-input').value='${t.ip}';document.getElementById('tv-brand-input').value='${t.brand}'">Found: ${t.brand.toUpperCase()} ${t.name} at ${t.ip} (click to select)</div>`
+    ).join('');
+    document.getElementById('tv-ip-input').value = found[0].ip;
+    document.getElementById('tv-brand-input').value = found[0].brand;
+  } else {
+    scanResult.innerHTML = '<div class="none">No TVs found. Enter IP manually above.</div>';
   }
 }
 

@@ -55,9 +55,9 @@ SYSTEM_PROMPT = """Your name is Alf-I. You are an AI assistant created by Logan 
 You have the ability to control smart TVs on the local network using the control_tv function. When the user asks you to control a TV:
 - If you don't know the TV's IP address or brand, ask the user to add a TV in the remote panel
 - Use control_tv with the correct brand (roku, samsung, lg), IP address, action (keypress), and key name
-- Common key names: PowerOn, PowerOff, VolumeUp, VolumeDown, Mute, Play, Pause, Home, Up, Down, Left, Right, Select, Back, Netflix, YouTube, Input, Menu, Rev, Fwd
-- For Roku you can also use launch action with app names like Netflix, YouTube, Hulu
+- Common actions: power_on, power_off, volume_up, volume_down, mute, home, back, menu, exit, up, down, left, right, select, play, pause, netflix, youtube, prime_video, input
 - After sending a command, tell the user what you did
+- The user has a remote control panel they can use directly for day-to-day TV control
 - You can also help them find their TV's IP by suggesting they check their router or use the scan feature in the remote panel"""
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
@@ -69,7 +69,7 @@ TV_TOOLS = [
         "type": "function",
         "function": {
             "name": "connect_tv",
-            "description": "Scan for nearby Bluetooth TVs. Opens a device picker for the user to select their TV.",
+            "description": "Open the TV remote panel so the user can select or add a TV. The user can also control the TV directly from the remote panel.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -77,7 +77,7 @@ TV_TOOLS = [
         "type": "function",
         "function": {
             "name": "disconnect_tv",
-            "description": "Disconnect from the currently connected Bluetooth TV.",
+            "description": "Deselect the currently selected TV in the remote panel.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -85,7 +85,7 @@ TV_TOOLS = [
         "type": "function",
         "function": {
             "name": "tv_status",
-            "description": "Check if a TV is currently connected via Bluetooth.",
+            "description": "Check if a TV is currently selected and connected in the remote panel.",
             "parameters": {"type": "object", "properties": {}, "required": []}
         }
     },
@@ -93,7 +93,8 @@ TV_TOOLS = [
         "type": "function",
         "function": {
             "name": "control_tv",
-            "description": "Send a remote control command to a smart TV. For network control provide brand and IP. For Bluetooth the TV must be connected first.",
+            "description": "Send a remote control command to a smart TV. The user also has a remote panel with buttons for direct control.",
+            "parameters": {
             "parameters": {
                 "type": "object",
                 "properties": {
