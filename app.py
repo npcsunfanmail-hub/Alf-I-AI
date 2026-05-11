@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import traceback
 import tempfile
 import sqlite3
@@ -51,42 +52,18 @@ def save_history(user_id, history):
 init_db()
 print(f"DB path: {DB_PATH}")
 
-SYSTEM_PROMPT = "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson."
+SYSTEM_PROMPT = (
+    "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson.\n\n"
+    "You have access to the internet. When you need current information, use one of these commands "
+    "exactly as shown (on its own line, start of line):\n"
+    "- To search: [SEARCH: your search query]\n"
+    "- To visit a page: [BROWSE: full URL]\n"
+    "After the command, I will show you the results. Then continue your response."
+)
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
-
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "search_web",
-            "description": "Search the web for current information, news, and recent events. Use this for anything time-sensitive.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query"}
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "browse_web",
-            "description": "Fetch and read the full content of a specific webpage.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {"type": "string", "description": "Full URL to visit"}
-                },
-                "required": ["url"],
-            },
-        },
-    }
-]
 
 
 def search_web(query: str) -> str:
@@ -131,7 +108,7 @@ def browse_web(url: str) -> str:
 
 def call_llm(messages):
     client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
-    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages, tools=TOOLS, tool_choice="auto")
+    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages)
     return resp.choices[0].message
 
 
@@ -157,6 +134,8 @@ def sync():
     return jsonify({"history": hist or []})
 
 
+TOOL_RE = r'\[(SEARCH|BROWSE):\s*(.+?)\]'
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json()
@@ -170,27 +149,23 @@ def chat():
     msgs = [{"role": "system", "content": sys_msg}] + messages
 
     try:
-        msg = call_llm(msgs)
-        content = msg.content or ""
-        tool_calls = getattr(msg, "tool_calls", None) or []
+        for _ in range(5):
+            msg = call_llm(msgs)
+            content = msg.content or ""
+            m = re.search(TOOL_RE, content)
+            if not m:
+                return jsonify({"content": content.strip()})
+            action, arg = m.group(1), m.group(2).strip()
+            if action == "SEARCH":
+                result = search_web(arg)
+            elif action == "BROWSE":
+                result = browse_web(arg)
+            else:
+                result = f"Unknown action: {action}"
+            msgs.append({"role": "assistant", "content": content})
+            msgs.append({"role": "user", "content": f"[TOOL RESULT for {action}: {arg}]\n{result}"})
 
-        if tool_calls:
-            msgs.append(msg.model_dump(exclude_none=True))
-            for tc in tool_calls:
-                name = tc.function.name
-                args = json.loads(tc.function.arguments)
-                if name == "search_web":
-                    result = search_web(**args)
-                elif name == "browse_web":
-                    result = browse_web(**args)
-                else:
-                    result = f"Unknown tool: {name}"
-                msgs.append({"role": "tool", "tool_call_id": tc.id, "content": result})
-            client2 = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
-            msg2 = client2.chat.completions.create(model=LLM_MODEL, messages=msgs)
-            content = msg2.choices[0].message.content or ""
-
-        return jsonify({"content": content.strip()})
+        return jsonify({"content": (msg.content or "").strip()})
     except Exception as e:
         traceback.print_exc()
         body = getattr(e, "body", None) or getattr(e, "response", None) or ""
