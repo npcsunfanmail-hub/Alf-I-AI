@@ -200,8 +200,9 @@ def chat():
                 else:
                     result = f"Unknown tool: {name}"
                 msgs.append({"role": "tool", "tool_call_id": tc.id, "content": result})
-            msg2 = call_llm(msgs)
-            content = msg2.content or ""
+            client2 = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
+            msg2 = client2.chat.completions.create(model=LLM_MODEL, messages=msgs)
+            content = msg2.choices[0].message.content or ""
 
         return jsonify({"content": content.strip()})
     except Exception as e:
