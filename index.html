@@ -11,8 +11,10 @@
   html, body { width: 100%; height: 100%; overflow: hidden; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a2e; display: flex; justify-content: center; align-items: center; -webkit-text-size-adjust: 100%; }
   #app { width: 100%; max-width: 500px; height: 100dvh; background: linear-gradient(180deg, #1a1a4e 0%, #0d0d3a 40%, #0a0a2e 100%); display: flex; flex-direction: column; position: relative; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-  #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; min-height: 0; }
-  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(4.5vw, 20px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s; }
+  #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; min-height: 0; transition: flex 0.3s; }
+  #face-container.drawer-open { flex: 0.4; }
+  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(4.5vw, 20px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s, transform 0.3s; }
+  #face-container.drawer-open #face { width: min(58vw, 260px); }
   @keyframes faceIdle { 0%, 100% { transform: translateY(0px) rotate(0deg); } 25% { transform: translateY(-6px) rotate(1.2deg); } 50% { transform: translateY(-10px) rotate(0deg); } 75% { transform: translateY(-6px) rotate(-1.2deg); } }
   #face.thinking { animation: faceThink 4s ease-in-out infinite; }
   @keyframes faceThink { 0%, 100% { transform: translateY(-3px) rotate(0.5deg); } 50% { transform: translateY(-8px) rotate(-0.5deg); } }
@@ -110,6 +112,62 @@
   #tv-device-list .device-btn svg { width:18px; height:18px; fill:rgba(255,255,255,0.4); flex-shrink:0; }
   #tv-device-list .device-btn .name { flex:1; text-align:left; }
   #tv-device-list .device-btn .signal { font-size:10px; color:rgba(255,255,255,0.3); }
+
+  #tv-btn svg { fill: rgba(255,255,255,0.6); }
+  #tv-btn.active { background: rgba(255,255,255,0.12); }
+  #tv-btn.active svg { fill: #4fc3f7; }
+
+  /* TV Drawer */
+  #tv-drawer { display: none; flex-shrink: 0; background: rgba(15,15,50,0.98); border-top: 1px solid rgba(255,255,255,0.08); padding: min(2vw, 8px) min(3vw, 12px) max(env(safe-area-inset-bottom, 8px), min(3vw, 12px)); overflow-y: auto; max-height: 55vh; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  #tv-drawer.open { display: block; animation: drawerUp 0.3s ease; }
+  @keyframes drawerUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  #tv-drawer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: min(2vw, 8px); padding: min(1.5vw, 6px) 0; }
+  #tv-drawer-title { color: rgba(255,255,255,0.7); font-size: min(3.5vw, 14px); font-weight: 600; letter-spacing: 1px; }
+  #tv-select-row { display: flex; align-items: center; gap: 6px; }
+  #tv-select { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: min(1.5vw, 6px) min(2vw, 8px); font-size: min(3vw, 12px); outline: none; max-width: 160px; }
+  #tv-select option { background: #1a1a4e; color: white; }
+  .tv-btn-sm { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); border-radius: 6px; cursor: pointer; padding: min(1.5vw, 6px) min(2.5vw, 10px); font-size: min(3.5vw, 14px); transition: all .15s; flex-shrink: 0; }
+  .tv-btn-sm:active { background: rgba(255,255,255,0.2); }
+  .tv-btn-sm.danger { color: #ef5350; border-color: rgba(239,83,80,0.3); }
+
+  #tv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: min(1.5vw, 6px); }
+  .tv-key { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); border-radius: min(2vw, 8px); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: min(2.5vw, 10px); font-size: min(3.8vw, 15px); transition: all .12s; user-select: none; -webkit-user-select: none; }
+  .tv-key:active { background: rgba(255,255,255,0.18); transform: scale(0.93); }
+  .tv-key.power { background: rgba(239,83,80,0.15); border-color: rgba(239,83,80,0.25); color: #ef5350; font-size: min(4.5vw, 18px); }
+  .tv-key.power:active { background: rgba(239,83,80,0.3); }
+  .tv-key.ok { background: rgba(79,195,247,0.15); border-color: rgba(79,195,247,0.25); color: #4fc3f7; font-size: min(4vw, 16px); font-weight: 600; }
+  .tv-key.ok:active { background: rgba(79,195,247,0.3); }
+  .tv-key.dpad { font-size: min(4vw, 16px); }
+  .tv-key.wide { grid-column: span 1; }
+
+  #tv-grid .empty { visibility: hidden; }
+
+  #tv-feedback { color: rgba(255,255,255,0.3); font-size: min(2.8vw, 11px); text-align: center; padding: min(1.5vw, 6px); min-height: min(4vw, 16px); }
+
+  /* Add TV Modal */
+  #tv-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
+  #tv-modal-overlay.open { display: flex; }
+  #tv-modal { background: #1a1a4e; border: 1px solid rgba(255,255,255,0.1); border-radius: min(3vw, 12px); padding: min(5vw, 20px); width: min(85vw, 350px); }
+  #tv-modal h3 { color: white; margin-bottom: min(3vw, 12px); font-size: min(4vw, 16px); }
+  #tv-modal label { color: rgba(255,255,255,0.6); font-size: min(2.8vw, 11px); display: block; margin-top: min(2vw, 8px); margin-bottom: min(1vw, 4px); }
+  #tv-modal input, #tv-modal select { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: white; border-radius: 6px; padding: min(2.5vw, 10px); font-size: min(3.5vw, 14px); outline: none; }
+  #tv-modal select option { background: #1a1a4e; }
+  #tv-modal-actions { display: flex; gap: 8px; margin-top: min(3vw, 12px); }
+  #tv-modal-actions button { flex: 1; padding: min(2.5vw, 10px); border-radius: 6px; border: none; cursor: pointer; font-size: min(3.5vw, 14px); }
+  #tv-modal-save { background: #4fc3f7; color: #0a0a2e; font-weight: 600; }
+  #tv-modal-cancel { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+  #tv-modal-scan { background: #66bb6a; color: #0a0a2e; }
+
+  #tv-scan-result { margin-top: min(2vw, 8px); color: rgba(255,255,255,0.5); font-size: min(2.8vw, 11px); }
+  #tv-scan-result .found { color: #66bb6a; }
+  #tv-scan-result .none { color: rgba(255,255,255,0.4); }
+
+  @media (max-height: 640px) {
+    #tv-drawer { max-height: 45vh; }
+    #tv-grid { gap: min(1vw, 4px); }
+    .tv-key { padding: min(2vw, 8px); font-size: min(3.2vw, 13px); }
+  }
 </style>
 </head>
 <body>
@@ -157,6 +215,75 @@
       <button class="icon-btn" id="send-btn" onclick="sendMessage()" title="Send">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
+      <button class="icon-btn" id="tv-drawer-toggle" onclick="toggleTVDrawer()" title="TV Remote">
+        <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="tv-drawer">
+    <div id="tv-drawer-header">
+      <div id="tv-drawer-title">TV Remote</div>
+      <div id="tv-select-row">
+        <select id="tv-select" onchange="onTvSelect()">
+          <option value="">-- No TV selected --</option>
+        </select>
+        <button class="tv-btn-sm" onclick="showAddTvModal()" title="Add TV">+</button>
+        <button class="tv-btn-sm danger" id="tv-remove-btn" onclick="removeTv()" title="Remove TV" style="display:none">-</button>
+      </div>
+    </div>
+    <div id="tv-grid">
+      <button class="tv-key power" onclick="tvSend('PowerOff')">⏻</button>
+      <button class="tv-key" onclick="tvSend('Input')">HDMI</button>
+      <button class="tv-key" onclick="tvSend('Menu')">Menu</button>
+
+      <div></div>
+      <button class="tv-key dpad" onclick="tvSend('Up')">▲</button>
+      <div></div>
+
+      <button class="tv-key dpad" onclick="tvSend('Left')">◀</button>
+      <button class="tv-key ok" onclick="tvSend('Select')">OK</button>
+      <button class="tv-key dpad" onclick="tvSend('Right')">▶</button>
+
+      <div></div>
+      <button class="tv-key dpad" onclick="tvSend('Down')">▼</button>
+      <div></div>
+
+      <button class="tv-key" onclick="tvSend('VolumeUp')">Vol+</button>
+      <button class="tv-key" onclick="tvSend('Mute')">Mute</button>
+      <button class="tv-key" onclick="tvSend('VolumeDown')">Vol-</button>
+
+      <button class="tv-key" onclick="tvSend('Rev')">⏪</button>
+      <button class="tv-key" onclick="tvSend('Play')">Play</button>
+      <button class="tv-key" onclick="tvSend('Fwd')">⏩</button>
+
+      <button class="tv-key" onclick="tvSend('Home')">Home</button>
+      <button class="tv-key" onclick="tvSend('Back')">Back</button>
+      <button class="tv-key" onclick="tvSend('Netflix')">Netflix</button>
+      <button class="tv-key" onclick="tvSend('YouTube')">YT</button>
+    </div>
+    <div id="tv-feedback"></div>
+  </div>
+</div>
+
+<div id="tv-modal-overlay">
+  <div id="tv-modal">
+    <h3>Add TV</h3>
+    <label>TV Name</label>
+    <input id="tv-name-input" type="text" placeholder="e.g. Living Room TV" value="Living Room TV">
+    <label>IP Address</label>
+    <input id="tv-ip-input" type="text" placeholder="e.g. 192.168.1.100">
+    <label>Brand</label>
+    <select id="tv-brand-input">
+      <option value="roku">Roku</option>
+      <option value="samsung">Samsung</option>
+      <option value="lg">LG</option>
+    </select>
+    <div id="tv-scan-result"></div>
+    <div id="tv-modal-actions">
+      <button id="tv-modal-scan" onclick="scanTvs()">Scan</button>
+      <button id="tv-modal-save" onclick="saveTv()">Add</button>
+      <button id="tv-modal-cancel" onclick="hideAddTvModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -183,16 +310,13 @@ async function loadHistory() {
     if (data.history && data.history.length) {
       history = data.history;
       localStorage.setItem('alfi_history', JSON.stringify(history));
-      console.log('Loaded', history.length, 'messages from server for', userId.slice(0, 8) + '...');
     } else {
       const saved = localStorage.getItem('alfi_history');
       if (saved) history = JSON.parse(saved);
-      console.log('Server empty, loaded', history.length, 'from localStorage');
     }
   } catch (e) {
     const saved = localStorage.getItem('alfi_history');
     if (saved) history = JSON.parse(saved);
-    console.log('Load failed, loaded', history.length, 'from localStorage');
   }
 }
 loadHistory();
@@ -208,6 +332,7 @@ let mouthStart = 0;
 
 const face = document.getElementById('face');
 const pupils = document.querySelectorAll('.pupil');
+const faceContainer = document.getElementById('face-container');
 
 function blinkEyes() {
   const dur = isThinking ? 250 : 100;
@@ -349,7 +474,6 @@ let voicesCache = [];
 
 function loadVoices() {
   voicesCache = window.speechSynthesis.getVoices();
-  console.log('Alf-I available voices:', voicesCache.map(v => v.name + ' [' + v.lang + ']').join(', '));
 }
 if (window.speechSynthesis) {
   loadVoices();
@@ -396,13 +520,10 @@ function speak(text) {
     window.speechSynthesis.speak(u);
   }
   speakNext();
-  if (voiceInfo) console.log('Alf-I voice:', voiceInfo);
-  else console.log('Alf-I voice: default');
 }
 
 function saveHistory() {
   localStorage.setItem('alfi_history', JSON.stringify(history));
-  console.log('Saving', history.length, 'messages for user', userId.slice(0, 8) + '...');
   return fetch('/api/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -538,6 +659,72 @@ class TVBluetoothRemote {
       return { success: false, error: e.message };
     }
   }
+
+// ===== TV Controller =====
+const SAMSUNG_KEYS = {
+  PowerOff:'KEY_POWER',PowerOn:'KEY_POWER',VolumeUp:'KEY_VOLUP',VolumeDown:'KEY_VOLDOWN',
+  Mute:'KEY_MUTE',Play:'KEY_PLAY',Pause:'KEY_PAUSE',Home:'KEY_HOME',Back:'KEY_RETURN',
+  Up:'KEY_UP',Down:'KEY_DOWN',Left:'KEY_LEFT',Right:'KEY_RIGHT',Select:'KEY_ENTER',
+  Netflix:'KEY_NETFLIX',YouTube:'KEY_YOUTUBE',Input:'KEY_SOURCE',Menu:'KEY_MENU',
+  Rev:'KEY_REWIND',Fwd:'KEY_FF'
+};
+
+const LG_KEYS = {
+  PowerOff:'POWER',PowerOn:'POWER',VolumeUp:'VOLUMEUP',VolumeDown:'VOLUMEDOWN',
+  Mute:'MUTE',Play:'PLAY',Pause:'PAUSE',Home:'HOME',Back:'BACK',
+  Up:'UP',Down:'DOWN',Left:'LEFT',Right:'RIGHT',Select:'OK',
+  Netflix:'NETFLIX',YouTube:'YOUTUBE',Input:'EXTERNAL_INPUT',Menu:'MENU',
+  Rev:'REWIND',Fwd:'FASTFORWARD'
+};
+
+class TVController {
+  constructor() {
+    this.tvs = JSON.parse(localStorage.getItem('alfi_tvs') || '[]');
+    this.currentId = localStorage.getItem('alfi_current_tv') || null;
+    this.currentTv = this.tvs.find(t => t.id === this.currentId) || null;
+  }
+
+  save() {
+    localStorage.setItem('alfi_tvs', JSON.stringify(this.tvs));
+  }
+
+  addTv(brand, ip, name) {
+    const tv = { id: crypto.randomUUID(), brand: brand.toLowerCase(), ip, name };
+    this.tvs.push(tv);
+    this.save();
+    this.selectTv(tv.id);
+    return tv;
+  }
+
+  removeTv(id) {
+    this.tvs = this.tvs.filter(t => t.id !== id);
+    this.save();
+    if (this.currentId === id) {
+      this.currentId = null;
+      this.currentTv = null;
+      localStorage.removeItem('alfi_current_tv');
+    }
+  }
+
+  selectTv(id) {
+    this.currentId = id;
+    this.currentTv = this.tvs.find(t => t.id === id) || null;
+    localStorage.setItem('alfi_current_tv', id || '');
+  }
+
+  getCurrent() {
+    return this.currentTv;
+  }
+
+  async sendRoku(ip, key) {
+    try {
+      await fetch(`http://${ip}:8060/keypress/${key}`, { method: 'POST', mode: 'no-cors' });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  }
+
 
   async _connectWeb() {
     if (!this.device) return { success: false, error: 'No device selected' };
@@ -1082,6 +1269,190 @@ async function executeToolCall(tc) {
       return { error: 'Unknown function: ' + name };
   }
 }
+  async sendSamsung(ip, key) {
+    const mapped = SAMSUNG_KEYS[key] || key;
+    return new Promise(resolve => {
+      try {
+        const ws = new WebSocket(`ws://${ip}:8002/api/v2/channels/samsung.remote.control`);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            method: 'ms.remote.control',
+            params: { Cmd: 'Click', DataOfCmd: mapped, Option: 'false', TypeOfRemote: 'SendRemoteKey' }
+          }));
+          setTimeout(() => { ws.close(); resolve({ success: true }); }, 500);
+        };
+        ws.onerror = () => resolve({ success: false, error: 'Connection failed' });
+        ws.ontimeout = () => resolve({ success: false, error: 'Timeout' });
+      } catch (e) {
+        resolve({ success: false, error: e.message });
+      }
+    });
+  }
+
+  async sendLg(ip, key) {
+    const mapped = LG_KEYS[key] || key;
+    return new Promise(resolve => {
+      try {
+        const ws = new WebSocket(`ws://${ip}:3000/`);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            type: 'register',
+            payload: {
+              forcePairing: false, pairingType: 'PROMPT',
+              manifest: {
+                manifestVersion: 1, appVersion: '1.1',
+                signed: {
+                  created: '20250101', appId: 'com.alfi.remote', vendorId: 'alfi',
+                  localizedAppNames: { '': 'Alf-I Remote' },
+                  localizedVendorNames: { '': 'Alf-I' },
+                  permissions: ['LAUNCH','CONTROL_INPUT_TEXT','CONTROL_MOUSE_AND_KEYBOARD','CONTROL_AUDIO','CONTROL_POWER'],
+                  serial: 'alfi001'
+                },
+                permissions: ['LAUNCH','CONTROL_INPUT_TEXT','CONTROL_MOUSE_AND_KEYBOARD','CONTROL_AUDIO','CONTROL_POWER']
+              }
+            }
+          }));
+        };
+        ws.onmessage = () => {
+          ws.send(JSON.stringify({ type: 'button', action: 'click', name: mapped }));
+          setTimeout(() => { ws.close(); resolve({ success: true }); }, 500);
+        };
+        ws.onerror = () => resolve({ success: false, error: 'Connection failed' });
+      } catch (e) {
+        resolve({ success: false, error: e.message });
+      }
+    });
+  }
+
+  async sendCommand(brand, ip, key) {
+    switch (brand) {
+      case 'roku': return this.sendRoku(ip, key);
+      case 'samsung': return this.sendSamsung(ip, key);
+      case 'lg': return this.sendLg(ip, key);
+      default: return { success: false, error: 'Unknown brand' };
+    }
+  }
+
+  async handleAICommand(cmd) {
+    if (!cmd || !cmd.ip || !cmd.key) return;
+    const result = await this.sendCommand(cmd.brand, cmd.ip, cmd.key);
+    const feedback = document.getElementById('tv-feedback');
+    if (feedback) {
+      feedback.textContent = result.success
+        ? `Sent ${cmd.key} to ${cmd.brand} at ${cmd.ip}`
+        : `TV command failed: ${result.error || 'unreachable from browser'}`;
+      feedback.style.color = result.success ? 'rgba(102,187,106,0.6)' : 'rgba(239,83,80,0.6)';
+      setTimeout(() => { if (feedback) { feedback.textContent = ''; } }, 4000);
+    }
+  }
+}
+
+const tvController = new TVController();
+const tvDrawer = document.getElementById('tv-drawer');
+const tvSelect = document.getElementById('tv-select');
+const tvBtn = document.getElementById('tv-drawer-toggle');
+const tvRemoveBtn = document.getElementById('tv-remove-btn');
+const tvFeedback = document.getElementById('tv-feedback');
+
+let drawerOpen = false;
+
+function toggleTVDrawer() {
+  drawerOpen = !drawerOpen;
+  tvDrawer.classList.toggle('open', drawerOpen);
+  tvBtn.classList.toggle('active', drawerOpen);
+  faceContainer.classList.toggle('drawer-open', drawerOpen);
+  if (drawerOpen) populateTvSelect();
+}
+
+function populateTvSelect() {
+  const current = tvController.getCurrent();
+  tvSelect.innerHTML = '<option value="">-- No TV selected --</option>';
+  tvController.tvs.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.name} (${t.brand})`;
+    if (current && t.id === current.id) opt.selected = true;
+    tvSelect.appendChild(opt);
+  });
+  tvRemoveBtn.style.display = current ? 'inline-block' : 'none';
+}
+
+function onTvSelect() {
+  const id = tvSelect.value;
+  tvController.selectTv(id || null);
+  tvRemoveBtn.style.display = id ? 'inline-block' : 'none';
+  if (!id) tvFeedback.textContent = '';
+}
+
+function removeTv() {
+  const tv = tvController.getCurrent();
+  if (!tv) return;
+  if (!confirm(`Remove ${tv.name}?`)) return;
+  tvController.removeTv(tv.id);
+  populateTvSelect();
+  tvFeedback.textContent = 'TV removed';
+}
+
+async function tvSend(key) {
+  const tv = tvController.getCurrent();
+  if (!tv) { tvFeedback.textContent = 'Select a TV first'; return; }
+
+  tvFeedback.textContent = `Sending ${key}...`;
+  const result = await tvController.sendCommand(tv.brand, tv.ip, key);
+  tvFeedback.textContent = result.success
+    ? `${key} sent to ${tv.name}`
+    : `Failed: ${result.error}`;
+  tvFeedback.style.color = result.success ? 'rgba(102,187,106,0.6)' : 'rgba(239,83,80,0.6)';
+  setTimeout(() => { tvFeedback.textContent = ''; tvFeedback.style.color = ''; }, 3000);
+}
+
+function showAddTvModal() {
+  document.getElementById('tv-modal-overlay').classList.add('open');
+  document.getElementById('tv-scan-result').innerHTML = '';
+  document.getElementById('tv-ip-input').focus();
+}
+
+function hideAddTvModal() {
+  document.getElementById('tv-modal-overlay').classList.remove('open');
+}
+
+function saveTv() {
+  const name = document.getElementById('tv-name-input').value.trim();
+  const ip = document.getElementById('tv-ip-input').value.trim();
+  const brand = document.getElementById('tv-brand-input').value;
+  if (!name || !ip) { alert('Name and IP required'); return; }
+
+  tvController.addTv(brand, ip, name);
+  hideAddTvModal();
+  populateTvSelect();
+  if (!drawerOpen) toggleTVDrawer();
+  tvFeedback.textContent = `${name} added`;
+  setTimeout(() => { tvFeedback.textContent = ''; }, 2000);
+}
+
+async function scanTvs() {
+  const scanResult = document.getElementById('tv-scan-result');
+  scanResult.innerHTML = 'Scanning network for Roku devices...';
+
+  try {
+    const res = await fetch('/api/tv/discover', { method: 'POST' });
+    const data = await res.json();
+    if (data.tvs && data.tvs.length) {
+      scanResult.innerHTML = data.tvs.map(t =>
+        `<div class="found">Found: ${t.name} at ${t.ip}</div>`
+      ).join('');
+      document.getElementById('tv-ip-input').value = data.tvs[0].ip;
+    } else {
+      scanResult.innerHTML = '<div class="none">No Roku TVs found. Enter IP manually.</div>';
+    }
+  } catch (e) {
+    scanResult.innerHTML = '<div class="none">Scan failed. Enter IP manually.</div>';
+  }
+}
+
+document.getElementById('tv-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) hideAddTvModal();
+});
 </script>
 <div id="tv-overlay" onclick="toggleTVPanel()"></div>
 <div id="tv-panel">
