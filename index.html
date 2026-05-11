@@ -844,32 +844,29 @@ function updateTVRemoteUI() {
   const dot = document.getElementById('tv-dot');
   const name = document.getElementById('tv-device-name');
   const scanBtn = document.getElementById('tv-scan-btn');
-  const netBtn = document.getElementById('tv-net-btn');
+  const discoverBtn = document.getElementById('tv-discover-btn');
   const discBtn = document.getElementById('tv-disconnect-btn');
   const ctrls = document.getElementById('tv-remote-controls');
   const noConn = document.getElementById('tv-no-connection');
-  if (tvNetwork.connected) {
+  const showBtn = (btn, show) => { if (btn) btn.style.display = show ? 'inline-block' : 'none'; };
+  const connected = tvNetwork.connected || tvRemote.connected;
+  if (connected) {
     dot.className = 'tv-dot connected';
-    name.textContent = tvNetwork.deviceName;
-    scanBtn.style.display = 'none'; netBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
-    ctrls.style.display = 'block'; noConn.style.display = 'none';
-  } else if (tvRemote.connected) {
-    dot.className = 'tv-dot connected';
-    name.textContent = tvRemote.deviceName;
-    scanBtn.style.display = 'none'; netBtn.style.display = 'none'; discBtn.style.display = 'inline-block';
+    name.textContent = tvNetwork.connected ? tvNetwork.deviceName : tvRemote.deviceName;
+    showBtn(scanBtn, false); showBtn(discoverBtn, false); showBtn(discBtn, true);
     ctrls.style.display = 'block'; noConn.style.display = 'none';
   } else if (tvRemote.device) {
     dot.className = 'tv-dot';
     name.textContent = tvRemote.deviceName + ' (disconnected)';
-    scanBtn.style.display = 'none'; netBtn.style.display = 'inline-block'; discBtn.style.display = 'inline-block';
+    showBtn(scanBtn, false); showBtn(discoverBtn, false); showBtn(discBtn, true);
     ctrls.style.display = 'none'; noConn.style.display = 'block';
-    noConn.textContent = 'Device disconnected. Tap Disconnect to remove.';
+    noConn.textContent = 'Disconnected. Tap Disconnect to remove.';
   } else {
     dot.className = 'tv-dot';
     name.textContent = 'Not connected';
-    scanBtn.style.display = 'inline-block'; netBtn.style.display = 'inline-block'; discBtn.style.display = 'none';
+    showBtn(scanBtn, true); showBtn(discoverBtn, true); showBtn(discBtn, false);
     ctrls.style.display = 'none'; noConn.style.display = 'block';
-    noConn.textContent = 'Connect via Bluetooth (BLE) or WiFi Network (NET) above.';
+    noConn.textContent = 'Tap Discover to auto-find TVs on your network, or use BLE for Bluetooth.';
   }
 }
 
@@ -882,6 +879,8 @@ async function disconnectTV() {
   if (tvNetwork.connected) { tvNetwork.disconnect(); tvConnectionMode = null; }
   if (tvRemote.connected) await tvRemote.disconnect();
   tvConnectionMode = null;
+  const dr = document.getElementById('tv-discover-results');
+  if (dr) dr.style.display = 'none';
   updateTVStatusBar(); updateTVRemoteUI();
   setStatus('DISCONNECTED');
 }
@@ -902,25 +901,129 @@ async function sendTVCommand(action) {
   }
 }
 
-function toggleNetworkForm() {
-  const f = document.getElementById('tv-network-form');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+async function getLocalIP() {
+  return new Promise((resolve) => {
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then(o => pc.setLocalDescription(o));
+      pc.onicecandidate = (e) => {
+        if (!e || !e.candidate) return;
+        const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+\.\d+)/);
+        if (m && (m[1].startsWith('192.168.') || m[1].startsWith('10.') || m[1].startsWith('172.'))) {
+          pc.close(); resolve(m[1]);
+        }
+      };
+      setTimeout(() => { try { pc.close(); } catch(e) {} resolve(null); }, 1500);
+    } catch (e) { resolve(null); }
+  });
 }
 
-async function connectNetworkTV() {
-  const ip = document.getElementById('tv-ip-input').value.trim();
-  if (!ip) { setStatus('ENTER TV IP'); return; }
-  const brand = document.getElementById('tv-brand-select').value;
+async function discoverTVs() {
+  setStatus('SCANNING...');
+  const section = document.getElementById('tv-discover-results');
+  const list = document.getElementById('tv-discovered-list');
+  const manual = document.getElementById('tv-discover-manual');
+  if (!section || !list) return;
+  manual.style.display = 'none';
+  section.style.display = 'block';
+  list.innerHTML = '<div style="text-align:center;padding:10px;color:rgba(255,255,255,0.3);font-size:12px">Scanning network...</div>';
+
+  let subnet = null;
+  const localIP = await getLocalIP();
+  if (localIP) { const p = localIP.split('.'); subnet = p[0] + '.' + p[1] + '.' + p[2]; }
+
+  const subnets = subnet ? [subnet] : ['192.168.0', '192.168.1', '10.0.0'];
+  const found = []; const seen = new Set();
+
+  for (const sn of subnets) {
+    const ips = [];
+    for (let i = 1; i <= 254; i++) ips.push(sn + '.' + i);
+    for (let s = 0; s < ips.length; s += 20) {
+      const results = await Promise.all(ips.slice(s, s + 20).map(ip => probeTV(ip)));
+      for (const r of results) {
+        if (r && !seen.has(r.ip)) { seen.add(r.ip); found.push(r); updateDiscoverList(found); }
+      }
+    }
+    if (found.length > 0) break;
+  }
+
+  if (found.length === 0) {
+    setStatus('NO TVS FOUND');
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:rgba(255,255,255,0.3);font-size:12px">No TVs found on your network.</div>';
+    manual.style.display = 'block';
+  }
+}
+
+function trySamsung(ip) {
+  return new Promise((resolve) => {
+    try {
+      const ws = new WebSocket('ws://' + ip + ':8002/api/v2/channels/samsung.remote.control?name=' + btoa('Alf-I'));
+      const t = setTimeout(() => { try { ws.close(); } catch(e) {} resolve(null); }, 300);
+      ws.onopen = () => { clearTimeout(t); try { ws.close(); } catch(e) {} resolve({ ip, brand:'samsung', name:'Samsung (' + ip + ')' }); };
+      ws.onerror = () => { clearTimeout(t); resolve(null); };
+    } catch (e) { resolve(null); }
+  });
+}
+
+async function tryRoku(ip) {
+  try {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), 200);
+    const res = await fetch('http://' + ip + ':8060/', { method:'HEAD', signal: c.signal, mode:'no-cors' });
+    clearTimeout(t);
+    return { ip, brand:'roku', name:'Roku (' + ip + ')' };
+  } catch (e) { return null; }
+}
+
+function tryLG(ip) {
+  return new Promise((resolve) => {
+    try {
+      const ws = new WebSocket('ws://' + ip + ':3000/');
+      const t = setTimeout(() => { try { ws.close(); } catch(e) {} resolve(null); }, 300);
+      ws.onopen = () => { clearTimeout(t); try { ws.close(); } catch(e) {} resolve({ ip, brand:'lg', name:'LG (' + ip + ')' }); };
+      ws.onerror = () => { clearTimeout(t); resolve(null); };
+    } catch (e) { resolve(null); }
+  });
+}
+
+async function probeTV(ip) {
+  const s = await trySamsung(ip); if (s) return s;
+  const r = await tryRoku(ip); if (r) return r;
+  const l = await tryLG(ip); if (l) return l;
+  return null;
+}
+
+function updateDiscoverList(devices) {
+  const list = document.getElementById('tv-discovered-list');
+  if (!list) return;
+  list.innerHTML = devices.map(d =>
+    '<button class="device-btn" onclick="connectNetworkTV(\'' + d.ip + '\',\'' + d.brand + '\',\'' + d.name.replace(/'/g,"\\'") + '\')">' +
+      '<svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>' +
+      '<span class="name">' + d.name + '</span>' +
+      '<span style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.5px">' + d.brand.toUpperCase() + '</span>' +
+    '</button>'
+  ).join('');
+}
+
+async function connectNetworkTV(ip, brand) {
   setStatus('CONNECTING...');
+  document.getElementById('tv-discover-results').style.display = 'none';
   const r = await tvNetwork.connect(ip, brand);
   if (r.success) {
     tvConnectionMode = 'network';
-    document.getElementById('tv-network-form').style.display = 'none';
     updateTVStatusBar(); updateTVRemoteUI();
     setStatus('READY');
   } else {
     setStatus('NET ERR: ' + (r.error || 'failed'));
   }
+}
+
+function connectManualTV() {
+  const ip = document.getElementById('tv-manual-ip').value.trim();
+  if (!ip) { setStatus('ENTER IP'); return; }
+  const brand = document.getElementById('tv-manual-brand').value;
+  connectNetworkTV(ip, brand);
 }
 
 function showDiscoveredDevices(devices) {
@@ -993,22 +1096,26 @@ async function executeToolCall(tc) {
   <div id="tv-connection-bar">
     <div class="tv-dot" id="tv-dot"></div>
     <span class="tv-device-name" id="tv-device-name">Not connected</span>
-    <button class="tv-action scan" id="tv-scan-btn" onclick="scanForTV()" title="Bluetooth">BLE</button>
-    <button class="tv-action" id="tv-net-btn" onclick="toggleNetworkForm()" title="WiFi Network">NET</button>
+    <button class="tv-action scan" id="tv-discover-btn" onclick="discoverTVs()" title="Auto-detect">Discover</button>
+    <button class="tv-action" id="tv-scan-btn" onclick="scanForTV()" title="Bluetooth">BLE</button>
     <button class="tv-action" id="tv-disconnect-btn" onclick="disconnectTV()" style="display:none">Disconnect</button>
   </div>
 
-  <div id="tv-network-form">
-    <div class="row">
-      <input type="text" id="tv-ip-input" placeholder="TV IP (e.g. 192.168.1.100)">
-      <select id="tv-brand-select">
-        <option value="samsung">Samsung</option>
-        <option value="lg">LG</option>
-        <option value="roku">Roku</option>
-      </select>
-      <button class="tv-action scan" id="tv-net-connect-btn" onclick="connectNetworkTV()">Go</button>
+  <div id="tv-discover-results" style="display:none">
+    <div class="tv-section-label">Discovered</div>
+    <div id="tv-discovered-list"></div>
+    <div id="tv-discover-manual" style="display:none;margin-top:6px">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="text" id="tv-manual-ip" placeholder="IP address" style="flex:1;background:rgba(255,255,255,0.08);border:none;border-radius:6px;color:white;padding:8px 10px;font-size:13px;outline:none;min-width:0">
+        <select id="tv-manual-brand" style="background:rgba(255,255,255,0.08);border:none;border-radius:6px;color:white;padding:7px 8px;font-size:12px;outline:none;cursor:pointer">
+          <option value="samsung">Samsung</option>
+          <option value="lg">LG</option>
+          <option value="roku">Roku</option>
+        </select>
+        <button class="tv-action scan" onclick="connectManualTV()">Go</button>
+      </div>
+      <span class="hint">TV must be on same WiFi. Check router for IP.</span>
     </div>
-    <span class="hint">TV must be on the same WiFi network. Check your router for the TV's IP.</span>
   </div>
 
   <div id="tv-scan-results" style="display:none">
