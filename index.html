@@ -312,9 +312,7 @@ function speak(text) {
 }
 
 function saveHistory() {
-  const trimmed = history.slice(-100);
-  localStorage.setItem('alfi_history', JSON.stringify(trimmed));
-  if (trimmed.length < history.length) history = trimmed;
+  localStorage.setItem('alfi_history', JSON.stringify(history));
 }
 
 function setStatus(msg) { statusEl.textContent = msg; }
