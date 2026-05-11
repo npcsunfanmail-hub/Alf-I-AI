@@ -96,6 +96,13 @@
   .tv-remote-btn.dpad.ok span { color:#4fc3f7; font-weight:700; font-size:12px; }
   .tv-remote-label { font-size:8px; color:rgba(255,255,255,0.35); letter-spacing:0.3px; }
   #tv-no-connection { text-align:center; padding:20px; color:rgba(255,255,255,0.25); font-size:12px; }
+  #tv-scan-results { margin-bottom:8px; }
+  #tv-device-list { display:flex; flex-direction:column; gap:4px; padding:4px 0; }
+  #tv-device-list .device-btn { width:100%; background:rgba(255,255,255,0.06); border:none; border-radius:8px; color:rgba(255,255,255,0.8); padding:10px 12px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .1s; }
+  #tv-device-list .device-btn:active { background:rgba(255,255,255,0.12); }
+  #tv-device-list .device-btn svg { width:18px; height:18px; fill:rgba(255,255,255,0.4); flex-shrink:0; }
+  #tv-device-list .device-btn .name { flex:1; text-align:left; }
+  #tv-device-list .device-btn .signal { font-size:10px; color:rgba(255,255,255,0.3); }
 </style>
 </head>
 <body>
@@ -497,11 +504,20 @@ class TVBluetoothRemote {
   constructor() {
     this.device = null; this.server = null; this.characteristic = null;
     this.connected = false; this.deviceName = '';
+    this.isNative = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNative && window.Capacitor.Plugins?.BluetoothLe;
+    this.blePlugin = this.isNative ? window.Capacitor.Plugins.BluetoothLe : null;
+    this._discoveredDevices = [];
+    this._nativeScanTimer = null;
   }
 
   async scan() {
+    if (this.isNative) return this._scanNative();
+    return this._scanWeb();
+  }
+
+  async _scanWeb() {
     try {
-      if (!('bluetooth' in navigator)) return { success: false, error: 'Web Bluetooth not supported. Use Chrome or Edge.' };
+      if (!('bluetooth' in navigator)) return { success: false, error: 'Web Bluetooth not supported on this browser. Use Chrome or the native mobile app.' };
       const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] });
       this.device = device; this.deviceName = device.name || 'Unknown Device';
       updateTVStatusBar(); updateTVRemoteUI();
@@ -509,14 +525,14 @@ class TVBluetoothRemote {
         this.connected = false; this.server = null; this.characteristic = null;
         updateTVStatusBar(); updateTVRemoteUI();
       });
-      return await this.connect();
+      return await this._connectWeb();
     } catch (e) {
       if (e.name === 'NotFoundError') return { success: false, error: 'No device selected' };
       return { success: false, error: e.message };
     }
   }
 
-  async connect() {
+  async _connectWeb() {
     if (!this.device) return { success: false, error: 'No device selected' };
     try {
       this.server = await this.device.gatt.connect();
@@ -536,7 +552,105 @@ class TVBluetoothRemote {
     } catch (e) { this.connected = false; return { success: false, error: e.message }; }
   }
 
+  async _scanNative() {
+    try {
+      await this.blePlugin.initialize();
+      this._discoveredDevices = [];
+      showDiscoveredDevices([]);
+      await this.blePlugin.startScanning(
+        { services: [], allowDuplicates: false },
+        (result) => {
+          const name = result.localName || result.name || '';
+          if (!name) return;
+          if (!this._discoveredDevices.find(d => d.deviceId === result.deviceId)) {
+            this._discoveredDevices.push({ deviceId: result.deviceId, name, rssi: result.rssi });
+            showDiscoveredDevices(this._discoveredDevices);
+          }
+        }
+      );
+      return new Promise((resolve) => {
+        this._nativeScanTimer = setTimeout(async () => {
+          try { await this.blePlugin.stopScanning(); } catch (e) {}
+          hideDiscoveredDevices();
+          if (this._discoveredDevices.length === 0) resolve({ success: false, error: 'No devices found. Make sure your TV is discoverable.' });
+          else resolve({ success: false, action_required: 'select_device', message: 'Tap a device in the list to connect.' });
+        }, 8000);
+      });
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
+  async connectToDevice(deviceId, name) {
+    if (this.isNative) return this._connectNative(deviceId, name);
+    return this._connectWeb();
+  }
+
+  async _connectNative(deviceId, name) {
+    try {
+      await this.blePlugin.connect({ deviceId });
+      this.device = deviceId; this.deviceName = name; this.connected = true;
+      const svcResult = await this.blePlugin.getServices({ deviceId });
+      let foundChar = null;
+      for (const svc of svcResult.services || []) {
+        for (const ch of svc.characteristics || []) {
+          if (ch.properties?.includes('write') || ch.properties?.includes('writeWithoutResponse')) {
+            foundChar = { service: svc.service, characteristic: ch.characteristic };
+            break;
+          }
+        }
+        if (foundChar) break;
+      }
+      this.characteristic = foundChar;
+      updateTVStatusBar(); updateTVRemoteUI();
+      return { success: true, device: name, characteristic_found: !!foundChar };
+    } catch (e) { this.connected = false; return { success: false, error: e.message }; }
+  }
+
+  async sendCommand(action) {
+    if (!this.connected) return { success: false, error: 'TV not connected' };
+    if (this.isNative) return this._sendNative(action);
+    return this._sendWeb(action);
+  }
+
+  async _sendWeb(action) {
+    if (!this.characteristic) return { success: false, error: 'No writable characteristic found' };
+    const encoder = new TextEncoder();
+    const attempts = [
+      encoder.encode('KEY_' + action.toUpperCase()),
+      new Uint8Array([this.getKeyCode(action)]),
+      encoder.encode(action)
+    ];
+    for (const data of attempts) {
+      try {
+        if (this.characteristic.properties.write) await this.characteristic.writeValue(data);
+        else if (this.characteristic.properties.writeWithoutResponse) await this.characteristic.writeValueWithoutResponse(data);
+        return { success: true, action };
+      } catch (e) { continue; }
+    }
+    return { success: false, error: 'Failed to write to characteristic' };
+  }
+
+  async _sendNative(action) {
+    if (!this.characteristic) return { success: false, error: 'No writable characteristic found' };
+    const payload = 'KEY_' + action.toUpperCase();
+    const bytes = new TextEncoder().encode(payload);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = btoa(binary);
+    try {
+      await this.blePlugin.write({
+        deviceId: this.device, service: this.characteristic.service,
+        characteristic: this.characteristic.characteristic, value: base64
+      });
+      return { success: true, action };
+    } catch (e) { return { success: false, error: e.message }; }
+  }
+
   async disconnect() {
+    if (this.isNative) return this._disconnectNative();
+    return this._disconnectWeb();
+  }
+
+  async _disconnectWeb() {
     try { if (this.device && this.device.gatt) this.device.gatt.disconnect(); } catch (e) {}
     this.connected = false; this.server = null; this.characteristic = null;
     this.device = null; this.deviceName = '';
@@ -544,25 +658,13 @@ class TVBluetoothRemote {
     return { success: true };
   }
 
-  async sendCommand(action) {
-    if (!this.connected || !this.server) return { success: false, error: 'TV not connected' };
-    if (this.characteristic) {
-      const encoder = new TextEncoder();
-      const attempts = [
-        encoder.encode('KEY_' + action.toUpperCase()),
-        new Uint8Array([this.getKeyCode(action)]),
-        encoder.encode(action)
-      ];
-      for (const data of attempts) {
-        try {
-          if (this.characteristic.properties.write) await this.characteristic.writeValue(data);
-          else if (this.characteristic.properties.writeWithoutResponse) await this.characteristic.writeValueWithoutResponse(data);
-          return { success: true, action };
-        } catch (e) { continue; }
-      }
-      return { success: false, error: 'Failed to write to characteristic' };
-    }
-    return { success: false, error: 'No writable characteristic found' };
+  async _disconnectNative() {
+    try { if (this.device) await this.blePlugin.disconnect({ deviceId: this.device }); } catch (e) {}
+    if (this._nativeScanTimer) { clearTimeout(this._nativeScanTimer); this._nativeScanTimer = null; }
+    this.connected = false; this.server = null; this.characteristic = null;
+    this.device = null; this.deviceName = '';
+    updateTVStatusBar(); updateTVRemoteUI();
+    return { success: true };
   }
 
   getKeyCode(action) {
@@ -635,6 +737,37 @@ async function sendTVCommand(action) {
   else setTimeout(() => setStatus('READY'), 800);
 }
 
+function showDiscoveredDevices(devices) {
+  const container = document.getElementById('tv-device-list');
+  const section = document.getElementById('tv-scan-results');
+  if (!container || !section) return;
+  section.style.display = 'block';
+  if (devices.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:10px;color:rgba(255,255,255,0.3);font-size:12px">Scanning...</div>';
+    return;
+  }
+  container.innerHTML = devices.map(d =>
+    '<button class="device-btn" onclick="selectNativeDevice(\'' + d.deviceId + '\',\'' + d.name.replace(/'/g,"\\'") + '\')">' +
+      '<svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>' +
+      '<span class="name">' + d.name + '</span>' +
+      '<span class="signal">' + (d.rssi > -60 ? '&#9679;' : '&#9675;') + '</span>' +
+    '</button>'
+  ).join('');
+}
+
+function hideDiscoveredDevices() {
+  const section = document.getElementById('tv-scan-results');
+  if (section) section.style.display = 'none';
+}
+
+async function selectNativeDevice(deviceId, name) {
+  setStatus('CONNECTING...');
+  hideDiscoveredDevices();
+  const result = await tvRemote.connectToDevice(deviceId, name);
+  if (!result.success) setStatus('TV ERR: ' + (result.error || 'connection failed'));
+  else setStatus('READY');
+}
+
 async function executeToolCall(tc) {
   const name = tc.function.name;
   let args = {};
@@ -643,6 +776,7 @@ async function executeToolCall(tc) {
     case 'connect_tv':
       if (tvRemote.connected) return { success: true, already_connected: true, device: tvRemote.deviceName };
       if (!tvRemotePanelOpen) toggleTVPanel();
+      if (tvRemote.isNative) { scanForTV(); return { success: false, action_required: 'select_device', message: 'Scanning for nearby TVs...' }; }
       return { success: false, action_required: 'scan', message: 'Tap the Scan button in the TV Remote panel to find your TV' };
     case 'disconnect_tv':
       await tvRemote.disconnect(); return { success: true };
@@ -673,6 +807,10 @@ async function executeToolCall(tc) {
     <button class="tv-action" id="tv-disconnect-btn" onclick="disconnectTV()" style="display:none">Disconnect</button>
   </div>
 
+  <div id="tv-scan-results" style="display:none">
+    <div class="tv-section-label">Discovered Devices</div>
+    <div id="tv-device-list"></div>
+  </div>
   <div id="tv-remote-controls" style="display:none">
     <div class="tv-section-label">Power</div>
     <div class="tv-remote-row">

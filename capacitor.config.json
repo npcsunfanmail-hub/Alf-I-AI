@@ -1,0 +1,23 @@
+{
+  "appId": "com.alfi.app",
+  "appName": "Alf-I",
+  "webDir": ".",
+  "server": {
+    "url": "https://alf-i.vercel.app",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "plugins": {
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "Scanning for Bluetooth TVs...",
+        "cancel": "Cancel",
+        "noDeviceFound": "No TV found"
+      }
+    }
+  },
+  "ios": {
+    "contentInset": "always",
+    "preferredContentMode": "mobile"
+  }
+}
