@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-.env
-node_modules/
-capacitor/node_modules/
-ios/
-android/
-.DS_Store
-*.log
