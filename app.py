@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from openai import OpenAI
 
+import tv_control
+
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(__file__)
@@ -54,10 +56,58 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "browse_web",
+            "description": "Fetch and read the content of a webpage. Returns the page text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The full URL to visit (must include https://)",
+                    }
+                },
+                "required": ["url"],
+            },
+        },
+    },
+] + tv_control.TV_TOOLS
+
+
+def browse_web(url: str) -> str:
+    import requests
+    from bs4 import BeautifulSoup
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"}
+        resp = requests.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer", "header"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+        lines = [l for l in text.splitlines() if l.strip()]
+        content = "\n".join(lines[:200])
+        return f"--- Page: {url} ---\n{content}\n--- End ---"
+    except Exception as e:
+        return f"Error browsing {url}: {e}"
+
+
+TOOL_DISPATCH = {
+    "browse_web": lambda **kw: browse_web(**kw),
+    "discover_tvs": lambda **kw: json.dumps(tv_control.discover_tvs(**kw)),
+    "pair_tv": lambda **kw: json.dumps(tv_control.pair_tv(**kw)),
+    "send_remote_command": lambda **kw: json.dumps(tv_control.send_remote_command(**kw)),
+    "get_paired_tvs": lambda **kw: json.dumps(tv_control.get_paired_tvs(**kw)),
+    "disconnect_tv": lambda **kw: json.dumps(tv_control.disconnect(**kw)),
+}
+
 
 def call_llm(messages):
     client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
-    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages)
+    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages, tools=TOOLS, tool_choice="auto")
     return resp.choices[0].message
 
 
@@ -97,7 +147,21 @@ def chat():
 
     try:
         msg = call_llm(msgs)
-        return jsonify({"content": (msg.content or "").strip()})
+        content = msg.content or ""
+        tool_calls = getattr(msg, "tool_calls", None) or []
+
+        if tool_calls:
+            msgs.append({"role": "assistant", "content": content})
+            for tc in tool_calls:
+                name = tc.function.name
+                args = json.loads(tc.function.arguments)
+                fn = TOOL_DISPATCH.get(name)
+                result = fn(**args) if fn else f"Unknown tool: {name}"
+                msgs.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+            msg2 = call_llm(msgs)
+            content = msg2.content or ""
+
+        return jsonify({"content": content.strip()})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": repr(e)}), 500
