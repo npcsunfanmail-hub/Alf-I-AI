@@ -72,6 +72,14 @@
 #tv-scan-btn.scanning { animation: scanPulse 1s infinite; }
 @keyframes scanPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
+#tv-ip-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.08); color: white; font-size: 16px; text-align: center; outline: none; box-sizing: border-box; margin-bottom: 8px; }
+#tv-ip-input:focus { border-color: #4caf50; }
+#tv-ip-input::placeholder { color: rgba(255,255,255,0.3); }
+#tv-detect-btn { background: #ff9800; color: white; border: none; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; font-weight: 600; width: 100%; transition: background .2s; }
+#tv-detect-btn:hover { background: #f57c00; }
+#tv-detect-btn:disabled { background: #555; cursor: not-allowed; }
+.tv-or { color: rgba(255,255,255,0.3); text-align: center; padding: 8px 0; font-size: 12px; }
+
 #tv-list { flex: 1; overflow-y: auto; margin: 0 -4px; padding: 0 4px; min-height: 0; }
 .tv-item { background: rgba(255,255,255,0.06); border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer; border: 2px solid transparent; transition: all .2s; }
 .tv-item:hover { background: rgba(255,255,255,0.1); }
@@ -93,9 +101,11 @@
 #tv-status-msg { color: rgba(255,255,255,0.6); font-size: 13px; text-align: center; margin-top: 8px; min-height: 20px; }
 #tv-status-msg.error { color: #ef5350; }
 #tv-status-msg.success { color: #4caf50; }
+#tv-status-msg.info { color: #ff9800; }
 
 #tv-remote { display: none; }
 #tv-remote.open { display: block; }
+#tv-remote .tv-name-label { color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; margin-bottom: 8px; }
 #tv-disconnect-btn { background: transparent; color: #ef5350; border: 1px solid #ef5350; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; margin-top: 12px; width: 100%; }
 #tv-disconnect-btn:hover { background: rgba(239,83,80,0.1); }
 
@@ -166,12 +176,14 @@
       <button id="tv-close" onclick="toggleTVModal()">&times;</button>
     </h2>
 
-    <button id="tv-scan-btn" onclick="scanTVs()">
-      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-      Scan for TVs
+    <input id="tv-ip-input" type="text" placeholder="Enter TV IP address (e.g. 192.168.1.100)" oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
+    <button id="tv-detect-btn" onclick="detectTV()">Detect TV</button>
+    <div class="tv-or">- or -</div>
+    <button id="tv-scan-btn" onclick="scanTVs()" style="font-size:13px;padding:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6)">
+      Scan WiFi (only works when running locally)
     </button>
 
-    <div id="tv-list"><div id="tv-empty">Click "Scan for TVs" to find devices on your network</div></div>
+    <div id="tv-list"><div id="tv-empty">Enter your TV's IP address above and click Detect</div></div>
 
     <div id="tv-pair-section">
       <label>Enter the pairing code shown on your TV</label>
@@ -182,6 +194,7 @@
     <div id="tv-status-msg"></div>
 
     <div id="tv-remote">
+      <div class="tv-name-label" id="tv-connected-label">Connected</div>
       <div class="remote-grid">
         <button onclick="tvCommand('source')">SOURCE</button>
         <button onclick="tvCommand('up')"><span class="r-key">&#9650;</span></button>
@@ -560,9 +573,24 @@ input.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 
-// --- TV Remote Control ---
+// --- TV Remote Control (Client-Side) ---
 let selectedTV = null;
 let pairedTV = null;
+let samsungWs = null;
+
+const SAMSUNG_KEYS = {
+  power:"KEY_POWER", power_off:"KEY_POWER", power_on:"KEY_POWER",
+  volume_up:"KEY_VOLUP", volume_down:"KEY_VOLDOWN", mute:"KEY_MUTE",
+  channel_up:"KEY_CHUP", channel_down:"KEY_CHDOWN",
+  up:"KEY_UP", down:"KEY_DOWN", left:"KEY_LEFT", right:"KEY_RIGHT",
+  enter:"KEY_ENTER", back:"KEY_RETURN", exit:"KEY_EXIT",
+  home:"KEY_HOME", menu:"KEY_MENU", guide:"KEY_GUIDE", info:"KEY_INFO",
+  play:"KEY_PLAY", pause:"KEY_PAUSE", stop:"KEY_STOP",
+  rewind:"KEY_REWIND", fastforward:"KEY_FF",
+  source:"KEY_SOURCE", input:"KEY_SOURCE",
+  "0":"KEY_0","1":"KEY_1","2":"KEY_2","3":"KEY_3","4":"KEY_4",
+  "5":"KEY_5","6":"KEY_6","7":"KEY_7","8":"KEY_8","9":"KEY_9",
+};
 
 function toggleTVModal() {
   const modal = document.getElementById('tv-modal');
@@ -580,134 +608,231 @@ function setTVStatus(msg, type) {
   el.className = type || '';
 }
 
-async function scanTVs() {
-  const btn = document.getElementById('tv-scan-btn');
+function ipFromInput() {
+  return document.getElementById('tv-ip-input').value.trim();
+}
+
+async function detectTV() {
+  const ip = ipFromInput();
+  if (!ip) { setTVStatus('Enter a TV IP address first', 'error'); return; }
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+    setTVStatus('Invalid IP format', 'error'); return;
+  }
+
+  const btn = document.getElementById('tv-detect-btn');
   const list = document.getElementById('tv-list');
   btn.disabled = true;
-  btn.classList.add('scanning');
-  btn.textContent = 'Scanning...';
-  list.innerHTML = '<div id="tv-empty">Scanning network for TVs...</div>';
+  btn.textContent = 'Detecting...';
+  list.innerHTML = '<div id="tv-empty">Trying Samsung port 8002...</div>';
   setTVStatus('');
 
-  try {
-    const netCheck = await fetch('/api/tv/network-check');
-    const netInfo = await netCheck.json();
-    if (!netInfo.on_private_network) {
-      list.innerHTML = '<div id="tv-empty">This app is running in the cloud (Vercel) and cannot see your local WiFi network. Run this app locally with "python app.py" on your desktop for TV discovery to work.</div>';
-      setTVStatus('Not on local network - run app locally', 'error');
-      btn.disabled = false;
-      btn.classList.remove('scanning');
-      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg> Scan for TVs';
-      return;
-    }
+  let detected = null;
 
-    const res = await fetch('/api/tv/discover', { method: 'POST' });
-    const data = await res.json();
-    if (data.error) { setTVStatus(data.error, 'error'); list.innerHTML = '<div id="tv-empty">Error scanning</div>'; return; }
-    if (!data.tvs || !data.tvs.length) {
-      list.innerHTML = '<div id="tv-empty">No TVs found. Try these fixes:\n\u2022 Make sure your TV is powered on and on the same WiFi network\n\u2022 On your TV, start the "Remote App" or "SmartThings" feature\n\u2022 Temporarily disable Windows Firewall and try again</div>';
-      return;
-    }
-    list.innerHTML = '';
-    data.tvs.forEach(tv => {
-      const el = document.createElement('div');
-      el.className = 'tv-item';
-      el.innerHTML = '<div class="tv-name">' + (tv.friendly_name || tv.type.toUpperCase() + ' TV') + '</div><div class="tv-ip">' + tv.ip + '</div><div class="tv-type">' + tv.type + '</div>';
-      el.onclick = () => selectTV(tv, el);
-      list.appendChild(el);
+  // Try Samsung WebSocket on port 8002
+  try {
+    list.innerHTML = '<div id="tv-empty">Trying Samsung (port 8002)...</div>';
+    const ws = new WebSocket(`ws://${ip}:8002/api/v2/channels/samsung.remote.control`);
+    const got = await new Promise((resolve) => {
+      const t = setTimeout(() => { ws.close(); resolve(null); }, 2000);
+      ws.onopen = () => { clearTimeout(t); resolve('samsung'); ws.close(); };
+      ws.onerror = () => { clearTimeout(t); resolve(null); };
     });
-  } catch (e) {
-    setTVStatus('Connection error: ' + e.message, 'error');
-    list.innerHTML = '<div id="tv-empty">Connection error</div>';
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove('scanning');
-    btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg> Scan for TVs';
+    if (got) detected = { ip, type: 'samsung', friendly_name: 'Samsung TV' };
+  } catch (e) {}
+
+  // Try LG on port 8080
+  if (!detected) {
+    list.innerHTML = '<div id="tv-empty">Trying LG (port 8080)...</div>';
+    try {
+      const resp = await fetch(`http://${ip}:8080/roap/api/auth`, { method: 'POST', mode: 'no-cors', cache: 'no-cache' });
+      detected = { ip, type: 'lg', friendly_name: 'LG TV' };
+    } catch (e) {}
+  }
+
+  // Try Roku on port 8060
+  if (!detected) {
+    list.innerHTML = '<div id="tv-empty">Trying Roku (port 8060)...</div>';
+    try {
+      const resp = await fetch(`http://${ip}:8060/`, { mode: 'no-cors', cache: 'no-cache' });
+      detected = { ip, type: 'roku', friendly_name: 'Roku TV' };
+    } catch (e) {}
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Detect TV';
+
+  if (detected) {
+    list.innerHTML = '';
+    const el = document.createElement('div');
+    el.className = 'tv-item selected';
+    el.innerHTML = '<div class="tv-name">' + detected.friendly_name + '</div><div class="tv-ip">' + detected.ip + '</div><div class="tv-type">' + detected.type + '</div>';
+    list.appendChild(el);
+    selectedTV = detected;
+    document.getElementById('tv-pair-section').classList.add('open');
+    document.getElementById('tv-code-input').value = '';
+    document.getElementById('tv-code-input').focus();
+    setTVStatus('Detected! Enter the pairing code shown on your ' + detected.type.toUpperCase() + ' TV', 'success');
+  } else {
+    list.innerHTML = '<div id="tv-empty">No TV detected at ' + ip + '. Check the IP and make sure your TV has remote app access enabled in settings.</div>';
+    setTVStatus('Detection failed', 'error');
   }
 }
 
-function selectTV(tv, el) {
-  document.getElementById('tv-list').querySelectorAll('.selected').forEach(e => e.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedTV = tv;
-  document.getElementById('tv-pair-section').classList.add('open');
-  document.getElementById('tv-code-input').value = '';
-  document.getElementById('tv-code-input').focus();
-  setTVStatus('Enter the code shown on your ' + tv.type.toUpperCase() + ' TV', '');
+async function scanTVs() {
+  const list = document.getElementById('tv-list');
+  list.innerHTML = '<div id="tv-empty">Server-side scan... check TV IP manually above instead</div>';
+  setTVStatus('Use "Detect TV" above - server scan only works locally', 'info');
 }
 
 async function pairTV() {
-  if (!selectedTV) return;
+  if (!selectedTV) { setTVStatus('Select or detect a TV first', 'error'); return; }
   const code = document.getElementById('tv-code-input').value.trim();
-  if (!code) { setTVStatus('Please enter the pairing code from your TV', 'error'); return; }
+  if (!code) { setTVStatus('Enter the pairing code from your TV', 'error'); return; }
   const btn = document.getElementById('tv-connect-btn');
   btn.disabled = true;
   btn.textContent = 'Connecting...';
   setTVStatus('');
 
-  try {
-    const res = await fetch('/api/tv/pair', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip: selectedTV.ip, tv_type: selectedTV.type, pairing_code: code })
-    });
-    const data = await res.json();
-    if (data.success) {
-      pairedTV = selectedTV;
-      setTVStatus('Connected to ' + (pairedTV.friendly_name || pairedTV.type.toUpperCase() + ' TV'), 'success');
-      document.getElementById('tv-pair-section').classList.remove('open');
-      document.getElementById('tv-remote').classList.add('open');
-      document.getElementById('tv-btn').classList.add('connected');
-      document.querySelectorAll('.tv-item').forEach(e => e.style.display = 'none');
-      document.getElementById('tv-scan-btn').style.display = 'none';
-    } else {
-      setTVStatus(data.error || 'Pairing failed', 'error');
+  const ip = selectedTV.ip;
+  const type = selectedTV.type;
+
+  let success = false;
+
+  if (type === 'samsung') {
+    try {
+      const ws = new WebSocket(`ws://${ip}:8002/api/v2/channels/samsung.remote.control`);
+      const paired = await new Promise((resolve) => {
+        const t = setTimeout(() => { ws.close(); resolve(false); }, 8000);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            method: 'ms.remote.control',
+            params: { Cmd: 'Pairing', DataOfCmd: code, Option: 'false',
+              TypeOfRemote: 'iphone.ios.iap', AppName: 'ALF-I', AppId: 'com.alfi.remote' }
+          }));
+        };
+        ws.onmessage = (e) => {
+          try {
+            const resp = JSON.parse(e.data);
+            if (resp.event === 'ms.remote.control.connected') {
+              clearTimeout(t);
+              samsungWs = ws;
+              resolve(true);
+            }
+          } catch (e) {}
+        };
+        ws.onerror = () => { clearTimeout(t); resolve(false); };
+        ws.onclose = () => resolve(false);
+      });
+      if (paired) success = true;
+      else { ws.close(); setTVStatus('Samsung pairing rejected - check the code on your TV', 'error'); }
+    } catch (e) {
+      setTVStatus('Samsung connection error: ' + e.message, 'error');
     }
-  } catch (e) {
-    setTVStatus('Error: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Connect';
+  } else if (type === 'lg') {
+    try {
+      const deviceId = crypto.randomUUID();
+      const reg = await fetch(`http://${ip}:8080/roap/api/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parameters: { device_id: deviceId, device_name: 'ALF-I', pairing_type: 'code' } }),
+      });
+      const pair = await fetch(`http://${ip}:8080/roap/api/auth`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parameters: { device_id: deviceId, pairing_code: code } }),
+      });
+      pairedTV = selectedTV;
+      pairedTV.deviceId = deviceId;
+      success = true;
+      setTVStatus('Connected to LG TV', 'success');
+    } catch (e) {
+      setTVStatus('LG pairing failed - try running locally', 'error');
+    }
+  } else if (type === 'roku') {
+    try {
+      await fetch(`http://${ip}:8060/keypress/PowerOn`, { mode: 'no-cors' });
+      pairedTV = selectedTV;
+      success = true;
+      setTVStatus('Connected to Roku TV', 'success');
+    } catch (e) {
+      setTVStatus('Roku pairing failed - try running locally', 'error');
+    }
   }
+
+  if (success) {
+    pairedTV = selectedTV;
+    document.getElementById('tv-pair-section').classList.remove('open');
+    document.getElementById('tv-remote').classList.add('open');
+    document.getElementById('tv-btn').classList.add('connected');
+    document.getElementById('tv-connected-label').textContent = pairedTV.friendly_name + ' (' + pairedTV.ip + ')';
+    document.querySelectorAll('.tv-item').forEach(e => e.style.display = 'none');
+    document.getElementById('tv-scan-btn').style.display = 'none';
+    document.getElementById('tv-ip-input').style.display = 'none';
+    document.getElementById('tv-detect-btn').style.display = 'none';
+    setTVStatus('Connected', 'success');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Connect';
 }
 
 async function tvCommand(command) {
   if (!pairedTV) return;
-  setTVStatus('Sending: ' + command, '');
-  try {
-    const res = await fetch('/api/tv/command', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip: pairedTV.ip, command: command })
-    });
-    const data = await res.json();
-    if (data.success) setTVStatus(command.toUpperCase() + ' sent', 'success');
-    else setTVStatus(data.error || 'Command failed', 'error');
-  } catch (e) {
-    setTVStatus('Error: ' + e.message, 'error');
+  const ip = pairedTV.ip;
+  const type = pairedTV.type;
+
+  if (type === 'samsung' && samsungWs && samsungWs.readyState === WebSocket.OPEN) {
+    const key = SAMSUNG_KEYS[command];
+    if (!key) { setTVStatus('Unknown command: ' + command, 'error'); return; }
+    try {
+      samsungWs.send(JSON.stringify({
+        method: 'ms.remote.control',
+        params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'iphone.ios.iap' }
+      }));
+      setTVStatus(command.toUpperCase() + ' sent', 'success');
+    } catch (e) {
+      setTVStatus('Command error: ' + e.message, 'error');
+    }
+  } else if (type === 'lg') {
+    const LG_KEYS = { power:1, volume_up:24, volume_down:25, mute:8, channel_up:33, channel_down:34,
+      up:11, down:12, left:13, right:14, enter:15, back:23, exit:23, home:18, menu:17, guide:32, info:31,
+      play:35, pause:36, stop:37, rewind:39, fastforward:40, source:73, input:73 };
+    const key = LG_KEYS[command];
+    if (!key) { setTVStatus('Unknown command', 'error'); return; }
+    try {
+      await fetch(`http://${ip}:8080/roap/api/command`, {
+        method: 'POST', mode: 'no-cors', cache: 'no-cache',
+        body: JSON.stringify({ parameters: { device_id: pairedTV.deviceId, key } })
+      });
+      setTVStatus(command.toUpperCase() + ' sent', 'success');
+    } catch (e) { setTVStatus('Command error', 'error'); }
+  } else if (type === 'roku') {
+    const ROKU_KEYS = { power:'Power', volume_up:'VolumeUp', volume_down:'VolumeDown', mute:'VolumeMute',
+      up:'Up', down:'Down', left:'Left', right:'Right', enter:'Select', back:'Back', home:'Home',
+      play:'Play', pause:'Play', rewind:'Rev', fastforward:'Fwd' };
+    const key = ROKU_KEYS[command];
+    if (!key) { setTVStatus('Unknown command', 'error'); return; }
+    try {
+      await fetch(`http://${ip}:8060/keypress/${key}`, { mode: 'no-cors' });
+      setTVStatus(command.toUpperCase() + ' sent', 'success');
+    } catch (e) { setTVStatus('Command error', 'error'); }
   }
 }
 
-async function disconnectTV() {
-  if (!pairedTV) return;
-  try {
-    await fetch('/api/tv/disconnect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip: pairedTV.ip })
-    });
-  } catch (e) {}
+function disconnectTV() {
+  if (samsungWs) { try { samsungWs.close(); } catch(e){} samsungWs = null; }
   pairedTV = null;
   selectedTV = null;
   document.getElementById('tv-remote').classList.remove('open');
   document.getElementById('tv-btn').classList.remove('connected');
-  document.getElementById('tv-list').innerHTML = '<div id="tv-empty">Click "Scan for TVs" to find devices on your network</div>';
+  document.getElementById('tv-ip-input').style.display = '';
+  document.getElementById('tv-detect-btn').style.display = '';
+  document.getElementById('tv-list').innerHTML = '<div id="tv-empty">Enter your TV\'s IP address above and click Detect</div>';
   document.getElementById('tv-scan-btn').style.display = '';
   document.getElementById('tv-pair-section').classList.remove('open');
   setTVStatus('Disconnected', '');
 }
 
-// Check if already paired on modal open
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     const modal = document.getElementById('tv-modal');
