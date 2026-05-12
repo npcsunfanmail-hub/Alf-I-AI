@@ -110,6 +110,47 @@ let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
 localStorage.setItem('alfi_user_id', userId);
 let history = [];
 
+let tvIp = localStorage.getItem('alfi_tv_ip') || '';
+let tvType = localStorage.getItem('alfi_tv_type') || 'samsung';
+
+async function loadTvConfig() {
+  try {
+    const res = await fetch('/api/tv/config');
+    const data = await res.json();
+    if (data.ip) { tvIp = data.ip; localStorage.setItem('alfi_tv_ip', tvIp); }
+    if (data.type) { tvType = data.type; localStorage.setItem('alfi_tv_type', tvType); }
+    console.log('TV config:', tvIp, tvType);
+  } catch (e) { console.log('TV config fetch failed (server-side only):', e); }
+}
+loadTvConfig();
+
+function tvPowerOff() {
+  if (!tvIp) { console.warn('TV_IP not configured'); return; }
+  if (tvType === 'samsung') {
+    try {
+      const ws = new WebSocket(`ws://${tvIp}:8002/api/v2/channels/samsung.remote.control`);
+      ws.onopen = () => {
+        const cmd = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: 'KEY_POWER', Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
+        ws.send(cmd);
+        setTimeout(() => { ws.send(cmd); ws.close(); }, 300);
+      };
+      ws.onerror = () => console.warn('Samsung WebSocket failed - TV may be unreachable');
+    } catch (e) { console.warn('TV power-off error:', e); }
+  } else if (tvType === 'lg') {
+    fetch(`http://${tvIp}:8080/roapi/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grant_type: 'password' }) })
+      .catch(e => console.warn('LG power-off failed:', e));
+  }
+}
+
+function tvPowerOn() {
+  if (!tvIp) { console.warn('TV_IP not configured'); return; }
+  if (tvType === 'samsung') {
+    tvPowerOff();
+  } else if (tvType === 'lg') {
+    tvPowerOff();
+  }
+}
+
 async function loadHistory() {
   try {
     const res = await fetch('/api/sync?user_id=' + encodeURIComponent(userId));
@@ -398,6 +439,9 @@ async function sendMessage() {
     stopThinking();
 
     if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
+
+    if (data.tv_command === 'tv_power_on') { console.log('Executing TV power-on from browser...'); tvPowerOn(); }
+    else if (data.tv_command === 'tv_power_off') { console.log('Executing TV power-off from browser...'); tvPowerOff(); }
 
     history.push({ role: 'assistant', content: data.content });
     saveHistory();
