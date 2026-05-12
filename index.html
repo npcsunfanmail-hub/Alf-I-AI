@@ -51,42 +51,6 @@
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   #tts-toggle.active svg { fill: #4fc3f7; }
   #send-btn svg { fill: #4fc3f7; }
-  .hidden { display: none !important; }
-  #tv-btn.connected svg { fill: #4fc3f7; }
-  #tv-panel { position: absolute; bottom: 0; left: 0; right: 0; background: #1a1a4e; border-radius: 18px 18px 0 0; padding: 20px 20px max(env(safe-area-inset-bottom, 8px), 20px); transform: translateY(100%); transition: transform 0.35s cubic-bezier(.4,0,.2,1); z-index: 50; border-top: 1px solid rgba(255,255,255,0.08); max-height: 80dvh; overflow-y: auto; box-shadow: 0 -8px 40px rgba(0,0,0,0.5); }
-  #tv-panel.open { transform: translateY(0); }
-  #tv-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  #tv-panel-header span { color: white; font-size: 17px; font-weight: 600; letter-spacing: 0.5px; }
-  #tv-panel-close { background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.5); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  #tv-panel-body { display: flex; flex-direction: column; gap: 10px; }
-  #tv-panel-body input, #tv-panel-body select { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 11px 14px; border-radius: 10px; font-size: 14px; outline: none; width: 100%; }
-  #tv-panel-body input:focus, #tv-panel-body select:focus { border-color: rgba(79,195,247,0.5); }
-  #tv-panel-body input::placeholder { color: rgba(255,255,255,0.25); }
-  #tv-panel-body select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.4)' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
-  #tv-panel-body select option { background: #1a1a4e; color: white; }
-  .tv-btn-primary { background: #4fc3f7; border: none; color: #0a0a2e; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; text-align: center; }
-  .tv-btn-primary:active { opacity: 0.8; }
-  .tv-btn-primary:disabled { opacity: 0.35; }
-  .tv-btn-secondary { background: rgba(255,255,255,0.08); border: none; color: white; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; text-align: center; }
-  .tv-btn-secondary:active { background: rgba(255,255,255,0.12); }
-  .tv-btn-danger { background: rgba(234,67,53,0.2); border: 1px solid rgba(234,67,53,0.3); color: #ea4335; padding: 11px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; text-align: center; }
-  .tv-btn-danger:active { background: rgba(234,67,53,0.3); }
-  #scan-results { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
-  .scan-result { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 10px; cursor: pointer; }
-  .scan-result:active { background: rgba(255,255,255,0.1); }
-  .scan-result-info { display: flex; flex-direction: column; gap: 2px; }
-  .scan-result-name { color: white; font-size: 14px; font-weight: 500; }
-  .scan-result-ip { color: rgba(255,255,255,0.4); font-size: 12px; }
-  .scan-result .tv-btn-primary { width: auto; padding: 5px 14px; font-size: 12px; }
-  .tv-divider { color: rgba(255,255,255,0.2); font-size: 12px; text-align: center; margin: 6px 0; position: relative; }
-  .tv-divider::before, .tv-divider::after { content: ''; position: absolute; top: 50%; width: 30%; height: 1px; background: rgba(255,255,255,0.08); }
-  .tv-divider::before { left: 0; } .tv-divider::after { right: 0; }
-  #tv-status-bar { display: flex; align-items: center; gap: 8px; background: rgba(79,195,247,0.1); border: 1px solid rgba(79,195,247,0.2); border-radius: 10px; padding: 10px 14px; margin-bottom: 4px; }
-  #tv-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #4fc3f7; flex-shrink: 0; }
-  #tv-status-label { color: rgba(255,255,255,0.7); font-size: 13px; flex: 1; }
-  #tv-scan-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.15); border-top-color: #4fc3f7; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .tv-scanning { pointer-events: none; opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -124,38 +88,9 @@
       <button class="icon-btn active" id="tts-toggle" onclick="toggleTTS()" title="Voice output">
         <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
       </button>
-      <button class="icon-btn" id="tv-btn" onclick="toggleTvPanel()" title="Connect TV">
-        <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12zm-6-7l-7 4V7l7 4z"/></svg>
-      </button>
       <button class="icon-btn" id="send-btn" onclick="sendMessage()" title="Send">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
-    </div>
-  </div>
-  <div id="tv-panel">
-    <div id="tv-panel-header">
-      <span>Connect TV</span>
-      <button id="tv-panel-close" onclick="toggleTvPanel()">✕</button>
-    </div>
-    <div id="tv-panel-body">
-      <div id="tv-status-bar" class="hidden">
-        <div id="tv-status-dot"></div>
-        <span id="tv-status-label">Connected</span>
-      </div>
-      <button class="tv-btn-primary" id="scan-btn" onclick="scanNetwork()">Scan Network</button>
-      <div id="scan-results"></div>
-      <div class="tv-divider">or enter manually</div>
-      <input id="tv-ip" type="text" placeholder="TV IP address (e.g. 192.168.1.100)">
-      <select id="tv-brand">
-        <option value="roku">Roku</option>
-        <option value="samsung">Samsung</option>
-        <option value="lg">LG</option>
-        <option value="sony">Sony</option>
-      </select>
-      <input id="tv-port" type="text" placeholder="Port (Roku: 8060, Samsung: 8001, LG: 3000)">
-      <button class="tv-btn-primary" id="connect-btn" onclick="manualConnect()">Connect</button>
-      <button class="tv-btn-secondary" id="test-btn" onclick="testTv()">Test Connection</button>
-      <button class="tv-btn-danger hidden" id="disconnect-btn" onclick="disconnectTv()">Disconnect TV</button>
     </div>
   </div>
 </div>
@@ -464,17 +399,6 @@ async function sendMessage() {
 
     if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
 
-    if (data.type === 'tv_action') {
-      const msg = data.content || 'TV command: ' + data.command;
-      history.push({ role: 'assistant', content: msg });
-      saveHistory();
-      setStatus('TV: ' + data.command);
-      happyReaction();
-      speak(msg);
-      executeTvCommand(data.command, data.value);
-      return;
-    }
-
     history.push({ role: 'assistant', content: data.content });
     saveHistory();
     setStatus('READY');
@@ -496,195 +420,6 @@ function resetConversation() {
   setStatus('READY');
   input.focus();
 }
-
-// === TV CONTROL ===
-let tvConfig = JSON.parse(localStorage.getItem('alfi_tv_config') || '{}');
-const tvPanel = document.getElementById('tv-panel');
-const tvBtn = document.getElementById('tv-btn');
-const scanResults = document.getElementById('scan-results');
-const scanBtn = document.getElementById('scan-btn');
-const connectBtn = document.getElementById('connect-btn');
-const disconnectBtn = document.getElementById('disconnect-btn');
-const tvStatusBar = document.getElementById('tv-status-bar');
-const tvStatusLabel = document.getElementById('tv-status-label');
-const tvIpInput = document.getElementById('tv-ip');
-const tvBrandSelect = document.getElementById('tv-brand');
-const tvPortInput = document.getElementById('tv-port');
-
-function updateTvUi() {
-  if (tvConfig.ip) {
-    tvBtn.classList.add('connected');
-    tvStatusBar.classList.remove('hidden');
-    tvStatusLabel.textContent = 'Connected to ' + tvConfig.brand.toUpperCase() + ' at ' + tvConfig.ip;
-    tvIpInput.value = tvConfig.ip;
-    tvBrandSelect.value = tvConfig.brand || 'roku';
-    tvPortInput.value = tvConfig.port || '';
-    scanBtn.classList.add('hidden');
-    connectBtn.classList.add('hidden');
-    document.querySelector('.tv-divider').classList.add('hidden');
-    disconnectBtn.classList.remove('hidden');
-  } else {
-    tvBtn.classList.remove('connected');
-    tvStatusBar.classList.add('hidden');
-    scanBtn.classList.remove('hidden');
-    connectBtn.classList.remove('hidden');
-    document.querySelector('.tv-divider').classList.remove('hidden');
-    disconnectBtn.classList.add('hidden');
-  }
-}
-
-function setTvConfig(ip, brand, port) {
-  tvConfig = { ip: ip || '', brand: (brand || 'roku').toLowerCase(), port: port || '' };
-  localStorage.setItem('alfi_tv_config', JSON.stringify(tvConfig));
-  updateTvUi();
-}
-
-function toggleTvPanel() {
-  var open = tvPanel.classList.toggle('open');
-  if (open) updateTvUi();
-}
-
-function promptTvConfig() {
-  toggleTvPanel();
-}
-
-async function scanNetwork() {
-  scanBtn.disabled = true;
-  scanBtn.innerHTML = '<span id="tv-scan-spinner"></span> Scanning...';
-  scanResults.innerHTML = '';
-  scanResults.classList.remove('hidden');
-
-  var subnets = ['192.168.1', '192.168.0', '10.0.0'];
-  var found = [];
-  var scanPromises = [];
-
-  for (var s = 0; s < subnets.length; s++) {
-    for (var i = 1; i <= 254; i++) {
-      scanPromises.push(probeIp(subnets[s] + '.' + i, found));
-    }
-  }
-
-  var batchSize = 20;
-  for (var b = 0; b < scanPromises.length; b += batchSize) {
-    await Promise.all(scanPromises.slice(b, b + batchSize));
-  }
-
-  scanBtn.disabled = false;
-  scanBtn.textContent = 'Scan Network';
-
-  if (found.length === 0) {
-    scanResults.innerHTML = '<div class="scan-result" style="justify-content:center;color:rgba(255,255,255,0.4);font-size:13px;">No TVs found. Enter IP manually below.</div>';
-  } else {
-    scanResults.innerHTML = found.map(function(tv) {
-      return '<div class="scan-result" onclick="selectScanResult(\'' + tv.ip + '\',\'' + tv.brand + '\',\'' + tv.port + '\')">' +
-        '<div class="scan-result-info">' +
-        '<span class="scan-result-name">' + tv.brandLabel + '</span>' +
-        '<span class="scan-result-ip">' + tv.ip + ' (port ' + tv.port + ')</span>' +
-        '</div>' +
-        '<button class="tv-btn-primary">Connect</button>' +
-        '</div>';
-    }).join('');
-  }
-}
-
-async function probeIp(ip, found) {
-  var probes = [
-    { brand: 'roku', brandLabel: 'Roku TV', port: '8060', url: 'http://' + ip + ':8060/query/device-info' },
-    { brand: 'roku', brandLabel: 'Roku TV', port: '8060', url: 'http://' + ip + ':8060/' }
-  ];
-
-  for (var p = 0; p < probes.length; p++) {
-    try {
-      var controller = new AbortController();
-      var id = setTimeout(function() { controller.abort(); }, 800);
-      await fetch(probes[p].url, { method: 'GET', mode: 'no-cors', signal: controller.signal });
-      clearTimeout(id);
-      if (!found.some(function(f) { return f.ip === ip; })) {
-        found.push({ ip: ip, brand: probes[p].brand, brandLabel: probes[p].brandLabel, port: probes[p].port });
-      }
-      return;
-    } catch (e) {}
-  }
-
-  if (ip.endsWith('.1') || ip.endsWith('.254')) return;
-  try {
-    var ws = new WebSocket('ws://' + ip + ':8001/api/v2/channels/samsung.remote.control?name=' + btoa('probe'));
-    ws.onopen = function() {
-      ws.close();
-      if (!found.some(function(f) { return f.ip === ip; })) {
-        found.push({ ip: ip, brand: 'samsung', brandLabel: 'Samsung TV', port: '8001' });
-      }
-    };
-    ws.onerror = function() {};
-    setTimeout(function() { if (ws.readyState === 0) ws.close(); }, 500);
-  } catch (e) {}
-}
-
-function selectScanResult(ip, brand, port) {
-  setTvConfig(ip, brand, port);
-  toggleTvPanel();
-}
-
-function manualConnect() {
-  var ip = tvIpInput.value.trim();
-  if (!ip) { tvIpInput.focus(); return; }
-  var brand = tvBrandSelect.value;
-  var port = tvPortInput.value.trim() || '';
-  setTvConfig(ip, brand, port);
-  toggleTvPanel();
-}
-
-function disconnectTv() {
-  setTvConfig('', 'roku', '');
-}
-
-function testTv() {
-  var ip = tvConfig.ip;
-  if (!ip) { setStatus('NO TV'); toggleTvPanel(); return; }
-  setStatus('TESTING...');
-  fetch('http://' + ip + ':' + (tvConfig.port || '8060') + '/keypress/Home', { method: 'POST', mode: 'no-cors' }).then(function() {
-    setStatus('TV OK - sent Home');
-  }).catch(function(e) {
-    setStatus('TV FAIL: ' + e.message);
-  });
-}
-
-async function executeTvCommand(command, value) {
-  const ip = tvConfig.ip;
-  if (!ip) { toggleTvPanel(); setStatus('CONFIGURE TV'); return; }
-  const brand = (tvConfig.brand || 'roku').toLowerCase();
-  if (brand === 'roku') rokuCommand(ip, tvConfig.port || '8060', command, value);
-  else if (brand === 'samsung') samsungCommand(ip, command, value);
-  setStatus('SENT: ' + command);
-  console.log('TV command sent:', command, value, 'to', ip);
-}
-
-function rokuCommand(ip, port, command, value) {
-  const appIds = { 'launch_netflix': '12', 'launch_youtube': '837', 'launch_prime_video': '13', 'launch_hulu': '2285', 'launch_disney_plus': '291097' };
-  const keyMap = { 'power_on': 'PowerOn', 'power_off': 'PowerOff', 'power_toggle': 'Power', 'volume_up': 'VolumeUp', 'volume_down': 'VolumeDown', 'mute_toggle': 'VolumeMute', 'home': 'Home', 'back': 'Back', 'ok': 'Select', 'up': 'Up', 'down': 'Down', 'left': 'Left', 'right': 'Right', 'input_hdmi1': 'InputHDMI1', 'input_hdmi2': 'InputHDMI2', 'input_hdmi3': 'InputHDMI3', 'input_av': 'InputAV1', 'input_tv': 'InputTuner', 'channel_up': 'ChannelUp', 'channel_down': 'ChannelDown', 'settings': 'Settings', 'source': 'Input', 'guide': 'Guide', 'info': 'Info' };
-  var base = 'http://' + ip + ':' + port;
-  var url = '';
-  if (command === 'launch_app' && value) url = base + '/launch/' + value;
-  else if (appIds[command]) url = base + '/launch/' + appIds[command];
-  else if (keyMap[command]) url = base + '/keypress/' + keyMap[command];
-  if (url) fetch(url, { method: 'POST', mode: 'no-cors' }).catch(function(e) { console.log('TV fetch error:', e); });
-}
-
-function samsungCommand(ip, command, value) {
-  const keyMap = { 'power_off': 'KEY_POWER', 'power_toggle': 'KEY_POWER', 'volume_up': 'KEY_VOLUP', 'volume_down': 'KEY_VOLDOWN', 'mute_toggle': 'KEY_MUTE', 'home': 'KEY_HOME', 'back': 'KEY_RETURN', 'ok': 'KEY_ENTER', 'up': 'KEY_UP', 'down': 'KEY_DOWN', 'left': 'KEY_LEFT', 'right': 'KEY_RIGHT', 'input_hdmi1': 'KEY_HDMI1', 'input_hdmi2': 'KEY_HDMI2', 'input_hdmi3': 'KEY_HDMI3', 'channel_up': 'KEY_CHUP', 'channel_down': 'KEY_CHDOWN', 'launch_netflix': 'KEY_NETFLIX', 'launch_youtube': 'KEY_YOUTUBE', 'source': 'KEY_SOURCE', 'guide': 'KEY_GUIDE', 'info': 'KEY_INFO', 'settings': 'KEY_MENU' };
-  var key = keyMap[command];
-  if (!key) { console.log('Samsung: unknown command', command); return; }
-  try {
-    var ws = new WebSocket('ws://' + ip + ':8001/api/v2/channels/samsung.remote.control?name=' + btoa('Alf-I'));
-    ws.onopen = function() {
-      ws.send(JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } }));
-      setTimeout(function() { ws.close(); }, 200);
-    };
-    ws.onerror = function(e) { console.log('Samsung WS error:', e); };
-  } catch (e) { console.log('Samsung error:', e); }
-}
-
-updateTvUi();
 
 input.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }

@@ -48,73 +48,16 @@ def save_history(user_id, history):
 init_db()
 print(f"DB path: {DB_PATH}")
 
-SYSTEM_PROMPT = (
-    "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson."
-    "\n\nYou can control TVs and home entertainment devices. "
-    "You have knowledge of universal remote protocols: "
-    "IR (NEC 32-bit, Sony SIRC, Philips RC-5), "
-    "IP/network control (Roku HTTP on port 8060, Samsung WebSocket on 8001/8002, "
-    "LG WebSocket on 3000/3001, Sony REST API), "
-    "HDMI-CEC, Bluetooth/BLE HID, Wake-on-LAN (magic packet on UDP 9), "
-    "and cloud services (SmartThings, HomeKit, Google Home)."
-    "\nIMPORTANT: You can only turn the TV OFF, not on. Power-on is not supported."
-    "\nWhen the user asks to control their TV, use the tv_control function. "
-    "Never mention the function calling mechanism to the user."
-)
+SYSTEM_PROMPT = "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson."
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
-TV_FUNCTIONS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "tv_control",
-            "description": "Send a control command to a TV. Use this when the user asks to control their TV.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The TV command to execute",
-                        "enum": [
-                            "power_off", "power_toggle",
-                            "volume_up", "volume_down", "mute_toggle",
-                            "input_hdmi1", "input_hdmi2", "input_hdmi3",
-                            "input_av", "input_tv",
-                            "channel_up", "channel_down",
-                            "home", "back", "ok",
-                            "up", "down", "left", "right",
-                            "launch_netflix", "launch_youtube",
-                            "launch_prime_video", "launch_disney_plus",
-                            "launch_hulu", "launch_app",
-                            "settings", "source", "guide", "info"
-                        ]
-                    },
-                    "value": {
-                        "type": "string",
-                        "description": "Optional extra data (e.g., app ID for launch_app)"
-                    }
-                },
-                "required": ["command"]
-            }
-        }
-    }
-]
-
 
 def call_llm(messages):
     client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
-    try:
-        resp = client.chat.completions.create(
-            model=LLM_MODEL, messages=messages,
-            tools=TV_FUNCTIONS, tool_choice="auto"
-        )
-    except Exception:
-        resp = client.chat.completions.create(
-            model=LLM_MODEL, messages=messages
-        )
+    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages)
     return resp.choices[0].message
 
 
@@ -154,18 +97,6 @@ def chat():
 
     try:
         msg = call_llm(msgs)
-
-        if msg.tool_calls:
-            tc = msg.tool_calls[0]
-            if tc.function.name == "tv_control":
-                args = json.loads(tc.function.arguments)
-                return jsonify({
-                    "type": "tv_action",
-                    "command": args.get("command", ""),
-                    "value": args.get("value", ""),
-                    "content": msg.content or ""
-                })
-
         return jsonify({"content": (msg.content or "").strip()})
     except Exception as e:
         traceback.print_exc()
