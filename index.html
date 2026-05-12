@@ -653,13 +653,20 @@ async function executeTvCommand(command, value) {
   } catch (e) { return { success: false, error: e.message }; }
 }
 
+async function tvFetch(url) {
+  var c = new AbortController();
+  var t = setTimeout(function() { c.abort(); }, 3000);
+  try { await fetch(url, { method: 'POST', mode: 'no-cors', signal: c.signal }); clearTimeout(t); return true; }
+  catch (e) { clearTimeout(t); throw e; }
+}
+
 async function rokuCommand(ip, port, command, value) {
   const base = 'http://' + ip + ':' + port;
   const appIds = { 'launch_netflix': '12', 'launch_youtube': '837', 'launch_prime_video': '13', 'launch_hulu': '2285', 'launch_disney_plus': '291097' };
   const keyMap = { 'power_on': 'PowerOn', 'power_off': 'PowerOff', 'power_toggle': 'Power', 'volume_up': 'VolumeUp', 'volume_down': 'VolumeDown', 'mute_toggle': 'VolumeMute', 'home': 'Home', 'back': 'Back', 'ok': 'Select', 'up': 'Up', 'down': 'Down', 'left': 'Left', 'right': 'Right', 'input_hdmi1': 'InputHDMI1', 'input_hdmi2': 'InputHDMI2', 'input_hdmi3': 'InputHDMI3', 'input_av': 'InputAV1', 'input_tv': 'InputTuner', 'channel_up': 'ChannelUp', 'channel_down': 'ChannelDown', 'settings': 'Settings', 'source': 'Input', 'guide': 'Guide', 'info': 'Info' };
-  if (command === 'launch_app' && value) { await fetch(base + '/launch/' + value, { method: 'POST', mode: 'no-cors' }); return { success: true }; }
-  if (appIds[command]) { await fetch(base + '/launch/' + appIds[command], { method: 'POST', mode: 'no-cors' }); return { success: true }; }
-  if (keyMap[command]) { await fetch(base + '/keypress/' + keyMap[command], { method: 'POST', mode: 'no-cors' }); return { success: true }; }
+  if (command === 'launch_app' && value) { await tvFetch(base + '/launch/' + value); return { success: true }; }
+  if (appIds[command]) { await tvFetch(base + '/launch/' + appIds[command]); return { success: true }; }
+  if (keyMap[command]) { await tvFetch(base + '/keypress/' + keyMap[command]); return { success: true }; }
   return { success: false, error: 'Unknown command' };
 }
 
