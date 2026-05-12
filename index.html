@@ -154,6 +154,7 @@
       </select>
       <input id="tv-port" type="text" placeholder="Port (Roku: 8060, Samsung: 8001, LG: 3000)">
       <button class="tv-btn-primary" id="connect-btn" onclick="manualConnect()">Connect</button>
+      <button class="tv-btn-secondary" id="test-btn" onclick="testTv()">Test Connection</button>
       <button class="tv-btn-danger hidden" id="disconnect-btn" onclick="disconnectTv()">Disconnect TV</button>
     </div>
   </div>
@@ -470,12 +471,7 @@ async function sendMessage() {
       setStatus('TV: ' + data.command);
       happyReaction();
       speak(msg);
-      setTimeout(async function() {
-        var result = await executeTvCommand(data.command, data.value);
-        if (result.success) { setStatus('TV OK'); }
-        else if (result.needsConfig) { setStatus('CONFIGURE TV'); }
-        else { setStatus('TV ERR'); console.log('TV error:', result.error); }
-      }, 500);
+      executeTvCommand(data.command, data.value);
       return;
     }
 
@@ -642,47 +638,50 @@ function disconnectTv() {
   setTvConfig('', 'roku', '');
 }
 
+function testTv() {
+  var ip = tvConfig.ip;
+  if (!ip) { setStatus('NO TV'); toggleTvPanel(); return; }
+  setStatus('TESTING...');
+  fetch('http://' + ip + ':' + (tvConfig.port || '8060') + '/keypress/Home', { method: 'POST', mode: 'no-cors' }).then(function() {
+    setStatus('TV OK - sent Home');
+  }).catch(function(e) {
+    setStatus('TV FAIL: ' + e.message);
+  });
+}
+
 async function executeTvCommand(command, value) {
   const ip = tvConfig.ip;
-  if (!ip) { toggleTvPanel(); return { success: false, error: 'TV not configured', needsConfig: true }; }
+  if (!ip) { toggleTvPanel(); setStatus('CONFIGURE TV'); return; }
   const brand = (tvConfig.brand || 'roku').toLowerCase();
-  try {
-    if (brand === 'roku') return rokuCommand(ip, tvConfig.port || '8060', command, value);
-    if (brand === 'samsung') return samsungCommand(ip, command, value);
-    return { success: false, error: 'Unsupported brand: ' + brand };
-  } catch (e) { return { success: false, error: e.message }; }
+  if (brand === 'roku') rokuCommand(ip, tvConfig.port || '8060', command, value);
+  else if (brand === 'samsung') samsungCommand(ip, command, value);
+  setStatus('SENT: ' + command);
+  console.log('TV command sent:', command, value, 'to', ip);
 }
 
-async function tvFetch(url) {
-  var c = new AbortController();
-  var t = setTimeout(function() { c.abort(); }, 3000);
-  try { await fetch(url, { method: 'POST', mode: 'no-cors', signal: c.signal }); clearTimeout(t); return true; }
-  catch (e) { clearTimeout(t); throw e; }
-}
-
-async function rokuCommand(ip, port, command, value) {
-  const base = 'http://' + ip + ':' + port;
+function rokuCommand(ip, port, command, value) {
   const appIds = { 'launch_netflix': '12', 'launch_youtube': '837', 'launch_prime_video': '13', 'launch_hulu': '2285', 'launch_disney_plus': '291097' };
   const keyMap = { 'power_on': 'PowerOn', 'power_off': 'PowerOff', 'power_toggle': 'Power', 'volume_up': 'VolumeUp', 'volume_down': 'VolumeDown', 'mute_toggle': 'VolumeMute', 'home': 'Home', 'back': 'Back', 'ok': 'Select', 'up': 'Up', 'down': 'Down', 'left': 'Left', 'right': 'Right', 'input_hdmi1': 'InputHDMI1', 'input_hdmi2': 'InputHDMI2', 'input_hdmi3': 'InputHDMI3', 'input_av': 'InputAV1', 'input_tv': 'InputTuner', 'channel_up': 'ChannelUp', 'channel_down': 'ChannelDown', 'settings': 'Settings', 'source': 'Input', 'guide': 'Guide', 'info': 'Info' };
-  if (command === 'launch_app' && value) { await tvFetch(base + '/launch/' + value); return { success: true }; }
-  if (appIds[command]) { await tvFetch(base + '/launch/' + appIds[command]); return { success: true }; }
-  if (keyMap[command]) { await tvFetch(base + '/keypress/' + keyMap[command]); return { success: true }; }
-  return { success: false, error: 'Unknown command' };
+  var base = 'http://' + ip + ':' + port;
+  var url = '';
+  if (command === 'launch_app' && value) url = base + '/launch/' + value;
+  else if (appIds[command]) url = base + '/launch/' + appIds[command];
+  else if (keyMap[command]) url = base + '/keypress/' + keyMap[command];
+  if (url) fetch(url, { method: 'POST', mode: 'no-cors' }).catch(function(e) { console.log('TV fetch error:', e); });
 }
 
-async function samsungCommand(ip, command, value) {
+function samsungCommand(ip, command, value) {
   const keyMap = { 'power_off': 'KEY_POWER', 'power_toggle': 'KEY_POWER', 'volume_up': 'KEY_VOLUP', 'volume_down': 'KEY_VOLDOWN', 'mute_toggle': 'KEY_MUTE', 'home': 'KEY_HOME', 'back': 'KEY_RETURN', 'ok': 'KEY_ENTER', 'up': 'KEY_UP', 'down': 'KEY_DOWN', 'left': 'KEY_LEFT', 'right': 'KEY_RIGHT', 'input_hdmi1': 'KEY_HDMI1', 'input_hdmi2': 'KEY_HDMI2', 'input_hdmi3': 'KEY_HDMI3', 'channel_up': 'KEY_CHUP', 'channel_down': 'KEY_CHDOWN', 'launch_netflix': 'KEY_NETFLIX', 'launch_youtube': 'KEY_YOUTUBE', 'source': 'KEY_SOURCE', 'guide': 'KEY_GUIDE', 'info': 'KEY_INFO', 'settings': 'KEY_MENU' };
-  const key = keyMap[command];
-  if (!key) return { success: false, error: 'Unsupported for Samsung' };
-  return new Promise(function(resolve) {
+  var key = keyMap[command];
+  if (!key) { console.log('Samsung: unknown command', command); return; }
+  try {
     var ws = new WebSocket('ws://' + ip + ':8001/api/v2/channels/samsung.remote.control?name=' + btoa('Alf-I'));
     ws.onopen = function() {
       ws.send(JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } }));
-      setTimeout(function() { ws.close(); resolve({ success: true }); }, 200);
+      setTimeout(function() { ws.close(); }, 200);
     };
-    ws.onerror = function() { resolve({ success: false, error: 'Cannot reach Samsung TV' }); };
-    setTimeout(function() { resolve({ success: false, error: 'Timeout' }); }, 5000);
-  });
+    ws.onerror = function(e) { console.log('Samsung WS error:', e); };
+  } catch (e) { console.log('Samsung error:', e); }
 }
 
 updateTvUi();
