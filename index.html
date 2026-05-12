@@ -59,13 +59,6 @@
   #settings-overlay.open { display: flex; }
   #settings-panel { background: #1a1a4e; border-radius: 16px; padding: min(6vw, 28px); width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08); }
   #settings-panel h2 { color: white; font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; letter-spacing: 0.5px; }
-  .setting-row { margin-bottom: 16px; }
-  .setting-row label { display: block; color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .setting-row input, .setting-row select { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 15px; padding: 10px 14px; outline: none; }
-  .setting-row input:focus, .setting-row select:focus { border-color: #4fc3f7; }
-  .setting-row select option { background: #1a1a4e; color: white; }
-  #settings-save { width: 100%; background: #4fc3f7; border: none; border-radius: 10px; color: #0a0a2e; font-size: 15px; font-weight: 600; padding: 11px; cursor: pointer; margin-top: 8px; }
-  #settings-save:active { opacity: 0.8; }
   #settings-close { float: right; background: none; border: none; color: rgba(255,255,255,0.4); font-size: 22px; cursor: pointer; line-height: 1; }
   #settings-close:hover { color: white; }
   .tv-test-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
@@ -73,9 +66,8 @@
   .tv-test-btn:active { background: rgba(255,255,255,0.15); }
   .tv-test-btn.ok { border-color: #4caf50; color: #4caf50; }
   .tv-test-btn.fail { border-color: #f44336; color: #f44336; }
-  #scan-btn { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: white; font-size: 14px; padding: 10px; cursor: pointer; margin-top: 12px; text-align: center; }
+  #scan-btn { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: white; font-size: 14px; padding: 10px; cursor: pointer; margin-top: 8px; text-align: center; }
   #scan-btn:active { background: rgba(255,255,255,0.15); }
-  #scan-btn.scanning { pointer-events: none; opacity: 0.5; }
   #scan-status { color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; margin-top: 8px; min-height: 18px; }
   #device-list { margin-top: 12px; max-height: 160px; overflow-y: auto; }
   .device-entry { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; cursor: pointer; }
@@ -86,6 +78,7 @@
   .device-entry .dev-info .dev-type { color: rgba(255,255,255,0.4); font-size: 11px; }
   .device-entry .dev-status { color: #4caf50; font-size: 11px; }
   .settings-help { color: rgba(255,255,255,0.35); font-size: 11px; text-align: center; margin-top: 12px; line-height: 1.5; }
+  #bt-status { transition: color 0.4s; }
 </style>
 </head>
 <body>
@@ -138,30 +131,19 @@
     <button id="settings-close" onclick="closeSettings()">&times;</button>
     <h2>TV Settings</h2>
     <div class="setting-row">
-      <label>TV IP Address</label>
-      <input id="tv-ip-input" type="text" placeholder="e.g. 192.168.1.100">
+      <label>Connected TV</label>
+      <div id="bt-status" style="color:rgba(255,255,255,0.4);font-size:14px;padding:8px 0;">Not connected</div>
     </div>
-    <div class="setting-row">
-      <label>TV Brand (auto-detected if found)</label>
-      <select id="tv-type-select">
-        <option value="samsung">Samsung (port 8002)</option>
-        <option value="lg">LG (port 8080)</option>
-        <option value="roku">Roku (port 8060)</option>
-        <option value="philips">Philips (port 1925)</option>
-        <option value="sony">Sony (port 10000)</option>
-        <option value="apple">Apple TV (port 7000)</option>
-      </select>
-    </div>
-    <button id="scan-btn" onclick="scanNetwork()">Scan Network for TVs</button>
-    <div id="scan-status">Click scan to find TVs on your network</div>
+    <button id="scan-btn" onclick="scanBluetooth()">Scan for Bluetooth TVs</button>
+    <div id="scan-status" style="color:rgba(255,255,255,0.5);font-size:12px;text-align:center;margin-top:8px;min-height:18px;">Click scan and select your TV from the browser popup</div>
     <div id="device-list"></div>
     <div class="tv-test-row">
       <button class="tv-test-btn" onclick="testTvPower()">Test Power</button>
       <button class="tv-test-btn" onclick="testTvVolume()">Test Vol</button>
       <button class="tv-test-btn" onclick="testTvHome()">Test Home</button>
     </div>
-    <button id="settings-save" onclick="saveTvSettings()">Save Settings</button>
-    <div class="settings-help">Make sure "Network Remote" or "IP Control" is enabled in your TV's network/expert settings. For Samsung: Settings → General → External Device Manager → Device Connect Manager → Access Notification → Off (or set to Always Allow).</div>
+    <button onclick="disconnectBt()" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:rgba(255,255,255,0.6);font-size:13px;padding:9px;cursor:pointer;margin-top:8px;">Disconnect</button>
+    <div class="settings-help">Make sure Bluetooth is enabled on your TV. On Samsung: Settings → General → External Device Manager → Device Connect Manager. On LG: Settings → Connection → Bluetooth. The TV must be on to appear in the scan.</div>
   </div>
 </div>
 
@@ -180,207 +162,188 @@ let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
 localStorage.setItem('alfi_user_id', userId);
 let history = [];
 
-let tvIp = localStorage.getItem('alfi_tv_ip') || '';
-let tvType = localStorage.getItem('alfi_tv_type') || 'samsung';
-let scanAbort = false;
+let tvDevice = null;
+let tvService = null;
+let tvBrand = localStorage.getItem('alfi_tv_brand') || '';
+let tvName = localStorage.getItem('alfi_tv_name') || '';
+let bleServer = null;
 
-// ---- Multi-brand remote key sender ----
-function tvSendKey(key) {
-  if (!tvIp) return;
-  const portMap = { samsung: 8002, lg: 8080, roku: 8060, philips: 1925, sony: 10000, apple: 7000 };
-  const port = portMap[tvType] || 8002;
+// ---- Bluetooth HID key codes for TV remote ----
+const BTN_MAP = {
+  KEY_POWER: [0x01, 0x00, 0x30],
+  KEY_HOME:  [0x01, 0x00, 0x40],
+  KEY_BACK:  [0x01, 0x00, 0x41],
+  KEY_EXIT:  [0x01, 0x00, 0x42],
+  KEY_MENU:  [0x01, 0x00, 0x43],
+  KEY_UP:    [0x02, 0x00, 0x52],
+  KEY_DOWN:  [0x02, 0x00, 0x51],
+  KEY_LEFT:  [0x02, 0x00, 0x50],
+  KEY_RIGHT: [0x02, 0x00, 0x4F],
+  KEY_ENTER: [0x02, 0x00, 0x28],
+  KEY_PLAY:    [0x03, 0x00, 0xB0],
+  KEY_PAUSE:   [0x03, 0x00, 0xB1],
+  KEY_STOP:    [0x03, 0x00, 0xB7],
+  KEY_FF:      [0x03, 0x00, 0xB3],
+  KEY_REW:     [0x03, 0x00, 0xB4],
+  KEY_VOLUP:    [0x04, 0x00, 0xE9],
+  KEY_VOLDOWN:  [0x04, 0x00, 0xEA],
+  KEY_MUTE:     [0x04, 0x00, 0xE2],
+  KEY_CHUP:    [0x05, 0x00, 0xD3],
+  KEY_CHDOWN:  [0x05, 0x00, 0xD4],
+  KEY_SOURCE:  [0x05, 0x00, 0x54],
+  KEY_GUIDE:   [0x05, 0x00, 0x55],
+  KEY_INFO:    [0x05, 0x00, 0x56],
+  KEY_NETFLIX:      [0x06, 0x00, 0x01],
+  KEY_YOUTUBE:      [0x06, 0x00, 0x02],
+  KEY_PRIME:        [0x06, 0x00, 0x03],
+  KEY_DISNEY_PLUS:  [0x06, 0x00, 0x04],
+  KEY_SPOTIFY:      [0x06, 0x00, 0x05],
+  KEY_HBO:          [0x06, 0x00, 0x06],
+  KEY_0: [0x07, 0x00, 0x27], KEY_1: [0x07, 0x00, 0x1E], KEY_2: [0x07, 0x00, 0x1F],
+  KEY_3: [0x07, 0x00, 0x20], KEY_4: [0x07, 0x00, 0x21], KEY_5: [0x07, 0x00, 0x22],
+  KEY_6: [0x07, 0x00, 0x23], KEY_7: [0x07, 0x00, 0x24], KEY_8: [0x07, 0x00, 0x25],
+  KEY_9: [0x07, 0x00, 0x26],
+};
 
-  if (tvType === 'samsung') {
-    try {
-      const ws = new WebSocket(`ws://${tvIp}:${port}/api/v2/channels/samsung.remote.control`);
-      ws.onopen = () => {
-        const p = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
-        ws.send(p);
-        setTimeout(() => ws.close(), 200);
-      };
-      ws.onerror = () => {};
-    } catch (e) {}
-    return;
-  }
-
-  if (tvType === 'lg') {
-    const LG_KEYS = { KEY_POWER:'POWER', KEY_VOLUP:'VOLUME_UP', KEY_VOLDOWN:'VOLUME_DOWN', KEY_MUTE:'MUTE', KEY_PLAY:'PLAY', KEY_PAUSE:'PAUSE', KEY_STOP:'STOP', KEY_UP:'UP', KEY_DOWN:'DOWN', KEY_LEFT:'LEFT', KEY_RIGHT:'RIGHT', KEY_ENTER:'ENTER', KEY_HOME:'HOME', KEY_BACK:'BACK', KEY_EXIT:'EXIT', KEY_MENU:'MENU' };
-    fetch(`http://${tvIp}:${port}/roapi/api/control`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({command:LG_KEYS[key]||key.replace('KEY_','')}) }).catch(()=>{});
-    return;
-  }
-
-  if (tvType === 'roku') {
-    const ROKY_KEYS = { KEY_POWER:'Power', KEY_HOME:'Home', KEY_UP:'Up', KEY_DOWN:'Down', KEY_LEFT:'Left', KEY_RIGHT:'Right', KEY_ENTER:'Select', KEY_BACK:'Back', KEY_EXIT:'Back', KEY_PLAY:'Play', KEY_PAUSE:'Play', KEY_VOLUP:'VolumeUp', KEY_VOLDOWN:'VolumeDown', KEY_MUTE:'VolumeMute', KEY_MENU:'Info', KEY_NETFLIX:'Netflix', KEY_YOUTUBE:'YouTube', KEY_PRIME:'PrimeVideo', KEY_DISNEY_PLUS:'DisneyPlus', KEY_SPOTIFY:'Spotify', KEY_HBO:'HBO', KEY_CHUP:'ChannelUp', KEY_CHDOWN:'ChannelDown', KEY_0:'Lit_0', KEY_1:'Lit_1', KEY_2:'Lit_2', KEY_3:'Lit_3', KEY_4:'Lit_4', KEY_5:'Lit_5', KEY_6:'Lit_6', KEY_7:'Lit_7', KEY_8:'Lit_8', KEY_9:'Lit_9' };
-    fetch(`http://${tvIp}:${port}/keypress/${ROKY_KEYS[key]||key}`, { method:'POST' }).catch(()=>{});
-    return;
-  }
-
-  if (tvType === 'philips') {
-    fetch(`http://${tvIp}:${port}/${key}`, { method:'POST' }).catch(()=>{});
-    return;
-  }
-
-  if (tvType === 'sony') {
-    fetch(`http://${tvIp}:${port}/sony/IRCC`, { method:'POST', headers:{'Content-Type':'text/xml; charset=utf-8','SOAPACTION':'"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC"'}, body:`<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:X_SendIRCC xmlns:u="urn:schemas-sony-com:service:IRCC:1"><IRCCCode>${key}</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>` }).catch(()=>{});
-    return;
-  }
-
-  if (tvType === 'apple') {
-    fetch(`http://${tvIp}:${port}/control`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key}) }).catch(()=>{});
-  }
-}
-
-// ---- App launcher ----
 const APP_KEYS = {
-  netflix:'KEY_NETFLIX', youtube:'KEY_YOUTUBE', 'prime video':'KEY_PRIME', 'amazon prime':'KEY_PRIME',
-  disney:'KEY_DISNEY_PLUS', 'disney+':'KEY_DISNEY_PLUS', spotify:'KEY_SPOTIFY',
-  hbo:'KEY_HBO', 'hbo max':'KEY_HBO',
+  netflix:'KEY_NETFLIX', youtube:'KEY_YOUTUBE', 'prime video':'KEY_PRIME',
+  'amazon prime':'KEY_PRIME', disney:'KEY_DISNEY_PLUS', 'disney+':'KEY_DISNEY_PLUS',
+  spotify:'KEY_SPOTIFY', hbo:'KEY_HBO', 'hbo max':'KEY_HBO',
 };
-const SAMSUNG_APP_IDS = {
-  netflix:'11101200001', youtube:'111299001912', 'prime video':'3201512006785',
-  'amazon prime':'3201512006785', disney:'3201901017640', 'disney+':'3201901017640',
-  spotify:'3201606009685', apple:'3201907018808', 'apple tv':'3201907018808',
-  plex:'9AC4AAB9D4.tizen.plex',
+
+const TV_SERVICES = {
+  '00001124-0000-1000-8000-00805f9b34fb': 'Samsung HID Remote',
+  '00001812-0000-1000-8000-00805f9b34fb': 'HID Service (HOGP)',
+  '0000180a-0000-1000-8000-00805f9b34fb': 'Device Information',
+  '0000180f-0000-1000-8000-00805f9b34fb': 'Battery Service',
 };
-function tvOpenApp(app) {
-  const name = app.toLowerCase().trim();
-  if (APP_KEYS[name]) { tvSendKey(APP_KEYS[name]); return; }
-  if (tvType === 'samsung' && SAMSUNG_APP_IDS[name]) {
-    try {
-      const ws = new WebSocket(`ws://${tvIp}:8002/api/v2/applications/${SAMSUNG_APP_IDS[name]}`);
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ method:'ms.channel.emit', params:{ event:'ed.apps.launch', to:'host', data:{ appId:SAMSUNG_APP_IDS[name], action_type:'NATIVE_LAUNCH' } } }));
-        setTimeout(() => ws.close(), 500);
-      };
-      ws.onerror = () => tvSendKey('KEY_HOME');
-    } catch(e) { tvSendKey('KEY_HOME'); }
-  } else { tvSendKey('KEY_HOME'); }
+
+function isTVName(name) {
+  const n = (name || '').toLowerCase();
+  return /samsung|lg |smarttv|tizen|webos|vizio|sony|bravia|philips|roku|panasonic|hisense|tcl|sharp|toshiba|android tv|google tv|apple tv/i.test(n);
 }
 
-// ---- TV config from server ----
-async function loadTvConfig() {
+// ---- Send key via Bluetooth ----
+async function tvSendKey(key) {
+  if (!bleServer || !bleServer.connected) {
+    if (tvDevice) {
+      try { bleServer = await tvDevice.gatt.connect(); } catch(e) { return; }
+    } else { return; }
+  }
+
   try {
-    const res = await fetch('/api/tv/config');
-    const data = await res.json();
-    if (data.ip) { tvIp = data.ip; localStorage.setItem('alfi_tv_ip', tvIp); }
-    if (data.type) { tvType = data.type; localStorage.setItem('alfi_tv_type', tvType); }
+    const hidSvc = await bleServer.getPrimaryService('00001124-0000-1000-8000-00805f9b34fb')
+      .catch(() => bleServer.getPrimaryService('00001812-0000-1000-8000-00805f9b34fb'))
+      .catch(() => null);
+    if (!hidSvc) return;
+
+    const chars = await hidSvc.getCharacteristics();
+    const reportChar = chars.find(c =>
+      c.uuid.includes('2a4d') || c.uuid.includes('2a4e') || c.uuid.includes('2a4f')
+    );
+    if (!reportChar) return;
+
+    const code = BTN_MAP[key];
+    if (!code) return;
+
+    const report = new Uint8Array([code[0], 0x01, code[2], 0, 0, 0, 0, 0]);
+    await reportChar.writeValue(report).catch(() => {});
+    await new Promise(r => setTimeout(r, 50));
+    const release = new Uint8Array([code[0], 0x00, 0, 0, 0, 0, 0, 0]);
+    await reportChar.writeValue(release).catch(() => {});
   } catch(e) {}
 }
-loadTvConfig();
 
-// ---- Network Discovery ----
-const TV_PORTS = [
-  { port: 8002, type: 'samsung', label: 'Samsung (WebSocket)' },
-  { port: 8080, type: 'lg', label: 'LG (HTTP)' },
-  { port: 8060, type: 'roku', label: 'Roku (HTTP)' },
-  { port: 1925, type: 'philips', label: 'Philips (HTTP)' },
-  { port: 10000, type: 'sony', label: 'Sony (HTTP)' },
-  { port: 7000, type: 'apple', label: 'Apple TV (HTTP)' },
-  { port: 3000, type: 'webos', label: 'WebOS (HTTP)' },
-];
-
-function getLocalSubnet() {
-  return new Promise(resolve => {
-    try {
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      pc.createDataChannel('');
-      pc.createOffer().then(o => pc.setLocalDescription(o));
-      pc.onicecandidate = e => {
-        if (!e || !e.candidate) return;
-        const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
-        if (m) { resolve(m[1]); pc.close(); }
-      };
-      setTimeout(() => { pc.close(); resolve('192.168.1'); }, 2000);
-    } catch(e) { resolve('192.168.1'); }
-  });
+// ---- Open app via Bluetooth ----
+function tvOpenApp(app) {
+  const name = app.toLowerCase().trim();
+  if (APP_KEYS[name]) { tvSendKey(APP_KEYS[name]); }
+  else { tvSendKey('KEY_HOME'); }
 }
 
-function probeWebSocket(ip, port, timeout) {
-  return new Promise(resolve => {
-    try {
-      const ws = new WebSocket(`ws://${ip}:${port}/api/v2/channels/samsung.remote.control`);
-      const t = setTimeout(() => { try { ws.close(); } catch(e) {} resolve(false); }, timeout);
-      ws.onopen = () => { clearTimeout(t); resolve(true); try { ws.close(); } catch(e) {} };
-      ws.onerror = () => { clearTimeout(t); resolve(false); };
-    } catch(e) { resolve(false); }
-  });
-}
-
-function probeHTTP(ip, port, timeout) {
-  return new Promise(resolve => {
-    const c = new AbortController();
-    const t = setTimeout(() => c.abort(), timeout);
-    fetch(`http://${ip}:${port}/`, { mode: 'no-cors', signal: c.signal })
-      .then(() => { clearTimeout(t); resolve(true); })
-      .catch(() => { clearTimeout(t); resolve(false); });
-  });
-}
-
-async function scanNetwork() {
-  const btn = document.getElementById('scan-btn');
+// ---- Bluetooth scan for TVs ----
+async function scanBluetooth() {
   const status = document.getElementById('scan-status');
   const list = document.getElementById('device-list');
-  scanAbort = false;
-  btn.classList.add('scanning');
-  btn.textContent = 'Scanning...';
   list.innerHTML = '';
-  status.textContent = 'Detecting your network...';
 
-  const subnet = await getLocalSubnet();
-  status.textContent = `Scanning ${subnet}.1-254 for TVs...`;
-  const found = [];
-
-  const batchSize = 20;
-  const allIPs = Array.from({length:254}, (_,i) => `${subnet}.${i+1}`);
-
-  for (let start = 0; start < allIPs.length && !scanAbort; start += batchSize) {
-    const batch = allIPs.slice(start, start + batchSize);
-    const results = await Promise.allSettled(batch.map(ip => probeWebSocket(ip, 8002, 500)));
-    for (let i = 0; i < results.length; i++) {
-      if (results[i].value === true) {
-        found.push({ ip: batch[i], port: 8002, type: 'samsung', label: 'Samsung TV' });
-      }
-    }
-    status.textContent = `Scanning ${subnet}.1-254... ${Math.min(start+batchSize,254)}/254`;
+  if (!navigator.bluetooth) {
+    status.textContent = 'Bluetooth not supported in this browser. Try Chrome or Edge.';
+    return;
   }
 
-  for (const dev of found) {
+  try {
+    status.textContent = 'Scanning for Bluetooth devices... (check browser popup)';
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        '00001124-0000-1000-8000-00805f9b34fb',
+        '00001812-0000-1000-8000-00805f9b34fb',
+        '0000180a-0000-1000-8000-00805f9b34fb',
+        '0000180f-0000-1000-8000-00805f9b34fb',
+      ],
+    });
+
+    const name = device.name || 'Unknown TV';
     const entry = document.createElement('div');
     entry.className = 'device-entry';
-    entry.innerHTML = `<div class="dev-icon">📺</div><div class="dev-info"><div class="dev-ip">${dev.ip}</div><div class="dev-type">${dev.label}</div></div><div class="dev-status">Found</div>`;
-    entry.onclick = () => {
-      tvIp = dev.ip;
-      tvType = dev.type;
-      document.getElementById('tv-ip-input').value = tvIp;
-      document.getElementById('tv-type-select').value = tvType;
-      saveTvSettings();
+    entry.innerHTML = `<div class="dev-icon">📺</div><div class="dev-info"><div class="dev-ip">${name}</div><div class="dev-type">${isTVName(name) ? 'TV detected' : 'Bluetooth device'}</div></div><div class="dev-status">Tap to pair</div>`;
+    entry.onclick = async () => {
+      try {
+        entry.querySelector('.dev-status').textContent = 'Pairing...';
+        const server = await device.gatt.connect();
+        tvDevice = device;
+        bleServer = server;
+        tvName = name;
+        tvBrand = isTVName(name) ? 'bluetooth_tv' : 'bluetooth';
+        localStorage.setItem('alfi_tv_name', tvName);
+        localStorage.setItem('alfi_tv_device_id', device.id);
+        localStorage.setItem('alfi_tv_brand', tvBrand);
+        entry.querySelector('.dev-status').textContent = 'Connected!';
+        document.getElementById('bt-status').textContent = `Paired: ${name}`;
+        document.getElementById('bt-status').style.color = '#4caf50';
+        setTimeout(() => closeSettings(), 1000);
+      } catch(e) {
+        entry.querySelector('.dev-status').textContent = 'Failed';
+      }
     };
     list.appendChild(entry);
+    status.textContent = 'Device found. Tap to pair and connect.';
+  } catch(e) {
+    if (e.name !== 'NotFoundError') {
+      status.textContent = 'Scan cancelled or error. Try again.';
+    } else {
+      status.textContent = 'No device selected.';
+    }
   }
-
-  if (found.length === 0) {
-    list.innerHTML = '<div style="color:rgba(255,255,255,0.4);text-align:center;padding:16px;font-size:13px;">No TVs found on port 8002 (Samsung).<br>Try entering the IP manually above and select the correct brand.</div>';
-  }
-
-  btn.classList.remove('scanning');
-  btn.textContent = 'Scan Network for TVs';
-  if (!scanAbort) status.textContent = found.length > 0 ? `Found ${found.length} device(s). Tap one to select.` : 'Scan complete - no devices found';
 }
+
+// ---- Reconnect to saved device ----
+async function reconnectBluetooth() {
+  const savedId = localStorage.getItem('alfi_tv_device_id');
+  if (!savedId || !navigator.bluetooth) return;
+  try {
+    const devices = await navigator.bluetooth.getDevices();
+    const saved = devices.find(d => d.id === savedId);
+    if (saved) {
+      tvDevice = saved;
+      tvName = saved.name || localStorage.getItem('alfi_tv_name') || '';
+      tvBrand = localStorage.getItem('alfi_tv_brand') || '';
+      const statusEl = document.getElementById('bt-status');
+      if (statusEl) {
+        statusEl.textContent = `Paired: ${tvName}`;
+        statusEl.style.color = '#4caf50';
+      }
+    }
+  } catch(e) {}
+}
+reconnectBluetooth();
 
 // ---- Settings UI ----
 function openSettings() {
-  document.getElementById('tv-ip-input').value = tvIp;
-  document.getElementById('tv-type-select').value = tvType;
   document.getElementById('settings-overlay').classList.add('open');
 }
 function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
-function saveTvSettings() {
-  tvIp = document.getElementById('tv-ip-input').value.trim();
-  tvType = document.getElementById('tv-type-select').value;
-  localStorage.setItem('alfi_tv_ip', tvIp);
-  localStorage.setItem('alfi_tv_type', tvType);
-  closeSettings();
-}
 function testTvPower() {
   const btn = event.target; btn.textContent='Sending...';
   tvSendKey('KEY_POWER');
@@ -395,6 +358,15 @@ function testTvHome() {
   const btn = event.target; btn.textContent='Sending...';
   tvSendKey('KEY_HOME');
   setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Home';btn.classList.remove('ok');},1500);},500);
+}
+function disconnectBt() {
+  if (bleServer && bleServer.connected) { bleServer.disconnect(); }
+  tvDevice = null; bleServer = null; tvName = ''; tvBrand = '';
+  localStorage.removeItem('alfi_tv_device_id');
+  localStorage.removeItem('alfi_tv_name');
+  localStorage.removeItem('alfi_tv_brand');
+  const el = document.getElementById('bt-status');
+  if (el) { el.textContent = 'Not connected'; el.style.color = 'rgba(255,255,255,0.4)'; }
 }
 
 async function loadHistory() {
