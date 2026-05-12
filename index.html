@@ -51,6 +51,28 @@
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   #tts-toggle.active svg { fill: #4fc3f7; }
   #send-btn svg { fill: #4fc3f7; }
+
+  #settings-btn svg { fill: rgba(255,255,255,0.4); }
+  #settings-btn:active svg { fill: white; }
+
+  #settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: min(5vw, 24px); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  #settings-overlay.open { display: flex; }
+  #settings-panel { background: #1a1a4e; border-radius: 16px; padding: min(6vw, 28px); width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08); }
+  #settings-panel h2 { color: white; font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; letter-spacing: 0.5px; }
+  .setting-row { margin-bottom: 16px; }
+  .setting-row label { display: block; color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .setting-row input, .setting-row select { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 15px; padding: 10px 14px; outline: none; }
+  .setting-row input:focus, .setting-row select:focus { border-color: #4fc3f7; }
+  .setting-row select option { background: #1a1a4e; color: white; }
+  #settings-save { width: 100%; background: #4fc3f7; border: none; border-radius: 10px; color: #0a0a2e; font-size: 15px; font-weight: 600; padding: 11px; cursor: pointer; margin-top: 8px; }
+  #settings-save:active { opacity: 0.8; }
+  #settings-close { float: right; background: none; border: none; color: rgba(255,255,255,0.4); font-size: 22px; cursor: pointer; line-height: 1; }
+  #settings-close:hover { color: white; }
+  .tv-test-row { display: flex; gap: 8px; margin-top: 12px; }
+  .tv-test-btn { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 13px; padding: 8px; cursor: pointer; text-align: center; }
+  .tv-test-btn:active { background: rgba(255,255,255,0.15); }
+  .tv-test-btn.ok { border-color: #4caf50; color: #4caf50; }
+  .tv-test-btn.fail { border-color: #f44336; color: #f44336; }
 </style>
 </head>
 <body>
@@ -91,7 +113,33 @@
       <button class="icon-btn" id="send-btn" onclick="sendMessage()" title="Send">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
+      <button class="icon-btn" id="settings-btn" onclick="openSettings()" title="TV Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+      </button>
     </div>
+  </div>
+</div>
+
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <button id="settings-close" onclick="closeSettings()">&times;</button>
+    <h2>TV Settings</h2>
+    <div class="setting-row">
+      <label>TV IP Address</label>
+      <input id="tv-ip-input" type="text" placeholder="e.g. 192.168.1.100">
+    </div>
+    <div class="setting-row">
+      <label>TV Brand</label>
+      <select id="tv-type-select">
+        <option value="samsung">Samsung</option>
+        <option value="lg">LG</option>
+      </select>
+    </div>
+    <div class="tv-test-row">
+      <button class="tv-test-btn" onclick="testTvPower()">Test Power Off</button>
+      <button class="tv-test-btn" onclick="testTvVolume()">Test Volume</button>
+    </div>
+    <button id="settings-save" onclick="saveTvSettings()">Save Settings</button>
   </div>
 </div>
 
@@ -112,6 +160,61 @@ let history = [];
 
 let tvIp = localStorage.getItem('alfi_tv_ip') || '';
 let tvType = localStorage.getItem('alfi_tv_type') || 'samsung';
+const SAMSUNG_WS = port => `ws://${tvIp}:${port}/api/v2/channels/samsung.remote.control`;
+const SAMSUNG_APP_WS = appId => `ws://${tvIp}:8002/api/v2/applications/${appId}`;
+
+function samsungKey(key) {
+  if (!tvIp) return;
+  try {
+    const ws = new WebSocket(SAMSUNG_WS(8002));
+    ws.onopen = () => {
+      const p = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
+      ws.send(p);
+      setTimeout(() => ws.close(), 200);
+    };
+    ws.onerror = () => {};
+  } catch (e) {}
+}
+
+function lgKey(key) {
+  if (!tvIp) return;
+  const LG_KEYS = { KEY_POWER: 'POWER', KEY_VOLUP: 'VOLUME_UP', KEY_VOLDOWN: 'VOLUME_DOWN', KEY_MUTE: 'MUTE', KEY_PLAY: 'PLAY', KEY_PAUSE: 'PAUSE', KEY_STOP: 'STOP', KEY_UP: 'UP', KEY_DOWN: 'DOWN', KEY_LEFT: 'LEFT', KEY_RIGHT: 'RIGHT', KEY_ENTER: 'ENTER', KEY_HOME: 'HOME', KEY_BACK: 'BACK', KEY_EXIT: 'EXIT', KEY_MENU: 'MENU' };
+  const lk = LG_KEYS[key] || key.replace('KEY_','');
+  fetch(`http://${tvIp}:8080/roapi/api/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: lk }) }).catch(() => {});
+}
+
+function tvSendKey(key) {
+  if (tvType === 'samsung') samsungKey(key);
+  else if (tvType === 'lg') lgKey(key);
+}
+
+const APP_KEYS = {
+  netflix: 'KEY_NETFLIX', youtube: 'KEY_YOUTUBE', 'prime video': 'KEY_PRIME', 'amazon prime': 'KEY_PRIME',
+  disney: 'KEY_DISNEY_PLUS', 'disney+': 'KEY_DISNEY_PLUS', spotify: 'KEY_SPOTIFY',
+  hbo: 'KEY_HBO', 'hbo max': 'KEY_HBO',
+};
+const SAMSUNG_APP_IDS = {
+  netflix: '11101200001', youtube: '111299001912', 'prime video': '3201512006785',
+  'amazon prime': '3201512006785', disney: '3201901017640', 'disney+': '3201901017640',
+  spotify: '3201606009685', apple: '3201907018808', 'apple tv': '3201907018808',
+  plex: '9AC4AAB9D4.tizen.plex',
+};
+function tvOpenApp(app) {
+  const name = app.toLowerCase().trim();
+  if (APP_KEYS[name]) { tvSendKey(APP_KEYS[name]); return; }
+  if (tvType === 'samsung' && SAMSUNG_APP_IDS[name]) {
+    try {
+      const ws = new WebSocket(SAMSUNG_APP_WS(SAMSUNG_APP_IDS[name]));
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ method: 'ms.channel.emit', params: { event: 'ed.apps.launch', to: 'host', data: { appId: SAMSUNG_APP_IDS[name], action_type: 'NATIVE_LAUNCH' } } }));
+        setTimeout(() => ws.close(), 500);
+      };
+      ws.onerror = () => tvSendKey('KEY_HOME');
+    } catch (e) { tvSendKey('KEY_HOME'); }
+  } else {
+    tvSendKey('KEY_HOME');
+  }
+}
 
 async function loadTvConfig() {
   try {
@@ -119,36 +222,34 @@ async function loadTvConfig() {
     const data = await res.json();
     if (data.ip) { tvIp = data.ip; localStorage.setItem('alfi_tv_ip', tvIp); }
     if (data.type) { tvType = data.type; localStorage.setItem('alfi_tv_type', tvType); }
-    console.log('TV config:', tvIp, tvType);
-  } catch (e) { console.log('TV config fetch failed (server-side only):', e); }
+  } catch (e) {}
 }
 loadTvConfig();
 
-function tvPowerOff() {
-  if (!tvIp) { console.warn('TV_IP not configured'); return; }
-  if (tvType === 'samsung') {
-    try {
-      const ws = new WebSocket(`ws://${tvIp}:8002/api/v2/channels/samsung.remote.control`);
-      ws.onopen = () => {
-        const cmd = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: 'KEY_POWER', Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
-        ws.send(cmd);
-        setTimeout(() => { ws.send(cmd); ws.close(); }, 300);
-      };
-      ws.onerror = () => console.warn('Samsung WebSocket failed - TV may be unreachable');
-    } catch (e) { console.warn('TV power-off error:', e); }
-  } else if (tvType === 'lg') {
-    fetch(`http://${tvIp}:8080/roapi/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grant_type: 'password' }) })
-      .catch(e => console.warn('LG power-off failed:', e));
-  }
+function openSettings() {
+  document.getElementById('tv-ip-input').value = tvIp;
+  document.getElementById('tv-type-select').value = tvType;
+  document.getElementById('settings-overlay').classList.add('open');
 }
-
-function tvPowerOn() {
-  if (!tvIp) { console.warn('TV_IP not configured'); return; }
-  if (tvType === 'samsung') {
-    tvPowerOff();
-  } else if (tvType === 'lg') {
-    tvPowerOff();
-  }
+function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+function saveTvSettings() {
+  tvIp = document.getElementById('tv-ip-input').value.trim();
+  tvType = document.getElementById('tv-type-select').value;
+  localStorage.setItem('alfi_tv_ip', tvIp);
+  localStorage.setItem('alfi_tv_type', tvType);
+  closeSettings();
+}
+async function testTvPower() {
+  const btn = event.target;
+  btn.textContent = 'Sending...';
+  tvSendKey('KEY_POWER');
+  setTimeout(() => { btn.textContent = 'Sent!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Test Power Off'; btn.classList.remove('ok'); }, 1500); }, 500);
+}
+async function testTvVolume() {
+  const btn = event.target;
+  btn.textContent = 'Sending...';
+  tvSendKey('KEY_VOLUP');
+  setTimeout(() => { btn.textContent = 'Sent!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Test Volume'; btn.classList.remove('ok'); }, 1500); }, 500);
 }
 
 async function loadHistory() {
@@ -440,8 +541,13 @@ async function sendMessage() {
 
     if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
 
-    if (data.tv_command === 'tv_power_on') { console.log('Executing TV power-on from browser...'); tvPowerOn(); }
-    else if (data.tv_command === 'tv_power_off') { console.log('Executing TV power-off from browser...'); tvPowerOff(); }
+    if (data.tv_command) {
+      const cmd = data.tv_command;
+      if (cmd.action === 'power_on') tvSendKey('KEY_POWER');
+      else if (cmd.action === 'power_off') tvSendKey('KEY_POWER');
+      else if (cmd.action === 'send_key') tvSendKey(cmd.key);
+      else if (cmd.action === 'open_app') tvOpenApp(cmd.app);
+    }
 
     history.push({ role: 'assistant', content: data.content });
     saveHistory();

@@ -78,6 +78,40 @@ def generic_power_off(ip):
     except Exception as e:
         return False, str(e)
 
+def send_key(key_code):
+    if not TV_IP:
+        return False, "TV_IP not configured"
+    if TV_TYPE == "samsung":
+        return samsung_send_key(TV_IP, key_code)
+    elif TV_TYPE == "lg":
+        return False, "LG key send not implemented server-side (use browser)"
+    return False, f"Unknown TV_TYPE '{TV_TYPE}'"
+
+def samsung_send_key(ip, key):
+    try:
+        import websocket
+        ws = websocket.create_connection(
+            f"ws://{ip}:8002/api/v2/channels/samsung.remote.control",
+            timeout=5
+        )
+        payload = json.dumps({
+            "method": "ms.remote.control",
+            "params": {
+                "Cmd": "Click",
+                "DataOfCmd": key,
+                "Option": "false",
+                "TypeOfRemote": "SendRemoteKey"
+            }
+        })
+        ws.send(payload)
+        ws.close()
+        logger.info("Key %s sent to Samsung TV at %s", key, ip)
+        return True, f"Key {key} sent"
+    except ImportError:
+        return False, "websocket-client package not installed"
+    except Exception as e:
+        return False, str(e)
+
 def power_on():
     if not TV_MAC:
         return False, "TV_MAC not configured — cannot send Wake-on-LAN signal"

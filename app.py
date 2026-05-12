@@ -52,8 +52,18 @@ print(f"DB path: {DB_PATH}")
 
 SYSTEM_PROMPT = (
     "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson. "
-    "You can control the TV using the tv_power_on and tv_power_off tools. "
-    "When the user asks you to turn the TV on or off, use the appropriate tool."
+    "You can fully control the TV. Available tools:\n"
+    "- tv_power_on / tv_power_off: turn TV on/off\n"
+    "- tv_send_key(key): send a remote key. Valid keys include: "
+    "KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER (navigation); "
+    "KEY_PLAY, KEY_PAUSE, KEY_STOP, KEY_FF, KEY_REW (playback); "
+    "KEY_VOLUP, KEY_VOLDOWN, KEY_MUTE (volume); "
+    "KEY_HOME, KEY_BACK, KEY_EXIT, KEY_MENU, KEY_SOURCE, KEY_GUIDE, KEY_INFO (system); "
+    "KEY_CHUP, KEY_CHDOWN (channel); "
+    "KEY_NETFLIX, KEY_YOUTUBE, KEY_PRIME, KEY_DISNEY_PLUS, KEY_SPOTIFY (apps); "
+    "KEY_0 through KEY_9 (numeric)\n"
+    "- tv_open_app(app): open a streaming app (netflix, youtube, prime video, disney+, spotify, apple tv, plex)\n"
+    "When the user asks to control the TV, use the appropriate tool."
 )
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
@@ -62,27 +72,26 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
 
 TV_TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "tv_power_on",
-            "description": "Turn the TV on using Wake-on-LAN. Requires TV_MAC to be configured.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "tv_power_off",
-            "description": "Turn the TV off via network command (Samsung WebSocket, LG HTTP, etc). Requires TV_IP and TV_TYPE to be configured.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
+    {"type": "function", "function": {"name": "tv_power_on", "description": "Turn the TV on", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "tv_power_off", "description": "Turn the TV off", "parameters": {"type": "object", "properties": {}, "required": []}}},
+    {"type": "function", "function": {"name": "tv_send_key", "description": "Send a remote control key to the TV", "parameters": {"type": "object", "properties": {"key": {"type": "string", "description": "Key code like KEY_PLAY, KEY_PAUSE, KEY_VOLUP, KEY_VOLDOWN, KEY_MUTE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_HOME, KEY_BACK, KEY_EXIT, KEY_MENU, KEY_SOURCE, KEY_CHUP, KEY_CHDOWN, KEY_NETFLIX, KEY_YOUTUBE, KEY_PRIME, KEY_DISNEY_PLUS, KEY_SPOTIFY, KEY_0..KEY_9"}}, "required": ["key"]}}},
+    {"type": "function", "function": {"name": "tv_open_app", "description": "Open a streaming app on the TV", "parameters": {"type": "object", "properties": {"app": {"type": "string", "description": "App name: netflix, youtube, prime video, disney+, spotify, apple tv, plex"}}, "required": ["app"]}}},
 ]
 
+def _tv_send_key_wrapper(args=None):
+    key = (args or {}).get("key", "")
+    if key:
+        return tv_control.send_key(key)
+    return False, "No key specified"
+
+def _tv_open_app_wrapper(args=None):
+    return True, "App launch command sent (executed client-side)"
+
 TOOL_MAP = {
-    "tv_power_on": tv_control.power_on,
-    "tv_power_off": tv_control.power_off,
+    "tv_power_on": lambda _: tv_control.power_on(),
+    "tv_power_off": lambda _: tv_control.power_off(),
+    "tv_send_key": _tv_send_key_wrapper,
+    "tv_open_app": _tv_open_app_wrapper,
 }
 
 
@@ -146,11 +155,23 @@ def chat():
         if msg.tool_calls:
             msgs.append(msg)
             for tc in msg.tool_calls:
-                if tc.function.name in ("tv_power_on", "tv_power_off"):
-                    tv_command = tc.function.name
                 fn = TOOL_MAP.get(tc.function.name)
+                args = {}
+                if tc.function.arguments:
+                    try:
+                        args = json.loads(tc.function.arguments)
+                    except json.JSONDecodeError:
+                        pass
+                if tc.function.name == "tv_power_on":
+                    tv_command = {"action": "power_on"}
+                elif tc.function.name == "tv_power_off":
+                    tv_command = {"action": "power_off"}
+                elif tc.function.name == "tv_send_key":
+                    tv_command = {"action": "send_key", "key": args.get("key", "")}
+                elif tc.function.name == "tv_open_app":
+                    tv_command = {"action": "open_app", "app": args.get("app", "")}
                 if fn:
-                    success, result = fn()
+                    success, result = fn(args)
                     msgs.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
