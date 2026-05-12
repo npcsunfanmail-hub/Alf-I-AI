@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Alf-I</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a2e; display: flex; justify-content: center; align-items: center; -webkit-text-size-adjust: 100%; }
+  #app { width: 100%; max-width: 500px; height: 100dvh; background: linear-gradient(180deg, #1a1a4e 0%, #0d0d3a 40%, #0a0a2e 100%); display: flex; flex-direction: column; position: relative; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; min-height: 0; }
+  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(4.5vw, 20px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s; }
+  @keyframes faceIdle { 0%, 100% { transform: translateY(0px) rotate(0deg); } 25% { transform: translateY(-6px) rotate(1.2deg); } 50% { transform: translateY(-10px) rotate(0deg); } 75% { transform: translateY(-6px) rotate(-1.2deg); } }
+  #face.thinking { animation: faceThink 4s ease-in-out infinite; }
+  @keyframes faceThink { 0%, 100% { transform: translateY(-3px) rotate(0.5deg); } 50% { transform: translateY(-8px) rotate(-0.5deg); } }
+
+  #brow-group { display: flex; gap: min(16vw, 70px); align-items: center; justify-content: center; width: 100%; }
+  .brow { width: min(22vw, 90px); height: min(1.6vw, 7px); background: white; border-radius: min(0.8vw, 3px); transition: transform 0.5s ease; box-shadow: 0 0 16px rgba(255,255,255,0.1); }
+  .brow.raise { transform: translateY(-6px); }
+
+  #eye-group { display: flex; gap: min(16vw, 70px); align-items: center; justify-content: center; width: 100%; }
+  .eye { width: min(16vw, 68px); height: min(26vw, 110px); background: white; border-radius: min(1.4vw, 6px); position: relative; display: flex; align-items: center; justify-content: center; transition: height 0.1s ease; box-shadow: 0 0 40px rgba(255,255,255,0.1); }
+  .eye.blink { height: min(0.8vw, 3px); }
+  .eye.widen { height: min(30vw, 120px); transition: height 0.2s ease; }
+  .thinking .eye.blink { height: min(0.8vw, 3px); transition: height 0.25s ease; }
+  .pupil { width: min(7vw, 30px); height: min(10vw, 42px); background: linear-gradient(135deg, #1a1a4e, #0a0a2e); border-radius: min(0.8vw, 3px); position: relative; transition: transform 0.5s ease; animation: pupilDrift 12s ease-in-out infinite; }
+  .pupil::after { content: ''; position: absolute; width: min(2.4vw, 10px); height: min(2.4vw, 10px); background: rgba(255,255,255,0.35); border-radius: 50%; top: min(1.2vw, 5px); right: min(1.2vw, 5px); }
+  @keyframes pupilDrift { 0%, 100% { transform: translateX(0px) translateY(0px); } 25% { transform: translateX(-4px) translateY(0px); } 50% { transform: translateX(0px) translateY(-3px); } 75% { transform: translateX(4px) translateY(0px); } }
+  .thinking .pupil { animation: pupilThink 3s ease-in-out infinite; }
+  @keyframes pupilThink { 0%, 100% { transform: translateX(0px) translateY(-4px); } 50% { transform: translateX(0px) translateY(-8px); } }
+
+  #mouth-area { display: flex; align-items: center; justify-content: center; }
+  #mouth { width: min(24vw, 100px); height: min(2vw, 8px); background: white; border-radius: min(0.8vw, 3px); transition: width 0.15s ease, background 0.1s, border 0.1s; box-shadow: 0 0 24px rgba(255,255,255,0.08); }
+  #mouth.open { width: min(28vw, 118px); background: #0a0a2e; border: min(0.3vw, 1.5px) solid rgba(255,255,255,0.7); border-radius: min(1.2vw, 5px); }
+
+  #name-label { color: rgba(255,255,255,0.12); font-size: min(2.8vw, 13px); font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-top: min(4vw, 18px); pointer-events: none; }
+  #status-text { color: rgba(255,255,255,0.4); font-size: min(3.2vw, 14px); text-align: center; padding: min(2vw, 10px); letter-spacing: 1px; }
+  #bottom-area { flex-shrink: 0; padding: min(3vw, 14px) min(4vw, 20px) max(env(safe-area-inset-bottom, 8px), min(4vw, 20px)); background: rgba(255,255,255,0.03); border-top: 1px solid rgba(255,255,255,0.06); }
+  #input-row { display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,0.08); border-radius: 24px; padding: 4px 4px 4px 14px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #input { flex: 1; min-width: 0; background: none; border: none; color: white; font-size: 16px; outline: none; padding: 9px 0; }
+  #input::placeholder { color: rgba(255,255,255,0.3); }
+  .icon-btn { background: none; border: none; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s; }
+  .icon-btn svg { width: 22px; height: 22px; fill: rgba(255,255,255,0.6); }
+  .icon-btn:active { background: rgba(255,255,255,0.15); }
+  .icon-btn:active svg { fill: white; }
+  #voice-btn.listening { background: #ea4335; animation: pulse 1s infinite; }
+  #voice-btn.listening svg { fill: white; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  #tts-toggle.active svg { fill: #4fc3f7; }
+  #send-btn svg { fill: #4fc3f7; }
+
+  #settings-btn svg { fill: rgba(255,255,255,0.4); }
+  #settings-btn:active svg { fill: white; }
+
+  #settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: min(5vw, 24px); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  #settings-overlay.open { display: flex; }
+  #settings-panel { background: #1a1a4e; border-radius: 16px; padding: min(6vw, 28px); width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08); }
+  #settings-panel h2 { color: white; font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; letter-spacing: 0.5px; }
+  .setting-row { margin-bottom: 16px; }
+  .setting-row label { display: block; color: rgba(255,255,255,0.6); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .setting-row input, .setting-row select { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 15px; padding: 10px 14px; outline: none; }
+  .setting-row input:focus, .setting-row select:focus { border-color: #4fc3f7; }
+  .setting-row select option { background: #1a1a4e; color: white; }
+  #settings-save { width: 100%; background: #4fc3f7; border: none; border-radius: 10px; color: #0a0a2e; font-size: 15px; font-weight: 600; padding: 11px; cursor: pointer; margin-top: 8px; }
+  #settings-save:active { opacity: 0.8; }
+  #settings-close { float: right; background: none; border: none; color: rgba(255,255,255,0.4); font-size: 22px; cursor: pointer; line-height: 1; }
+  #settings-close:hover { color: white; }
+  .tv-test-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .tv-test-btn { flex: 1; min-width: 80px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 13px; padding: 8px; cursor: pointer; text-align: center; }
+  .tv-test-btn:active { background: rgba(255,255,255,0.15); }
+  .tv-test-btn.ok { border-color: #4caf50; color: #4caf50; }
+  .tv-test-btn.fail { border-color: #f44336; color: #f44336; }
+  #scan-btn { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: white; font-size: 14px; padding: 10px; cursor: pointer; margin-top: 12px; text-align: center; }
+  #scan-btn:active { background: rgba(255,255,255,0.15); }
+  #scan-btn.scanning { pointer-events: none; opacity: 0.5; }
+  #scan-status { color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; margin-top: 8px; min-height: 18px; }
+  #device-list { margin-top: 12px; max-height: 160px; overflow-y: auto; }
+  .device-entry { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; cursor: pointer; }
+  .device-entry:active { background: rgba(255,255,255,0.1); }
+  .device-entry .dev-icon { font-size: 18px; }
+  .device-entry .dev-info { flex: 1; }
+  .device-entry .dev-info .dev-ip { color: white; font-size: 14px; }
+  .device-entry .dev-info .dev-type { color: rgba(255,255,255,0.4); font-size: 11px; }
+  .device-entry .dev-status { color: #4caf50; font-size: 11px; }
+  .settings-help { color: rgba(255,255,255,0.35); font-size: 11px; text-align: center; margin-top: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="face-container">
+    <div id="face">
+      <div id="brow-group">
+        <div class="brow" id="left-brow"></div>
+        <div class="brow" id="right-brow"></div>
+      </div>
+      <div id="eye-group">
+        <div class="eye" id="left-eye">
+          <div class="pupil"></div>
+        </div>
+        <div class="eye" id="right-eye">
+          <div class="pupil"></div>
+        </div>
+      </div>
+      <div id="mouth-area">
+        <div id="mouth"></div>
+      </div>
+      <div id="name-label">ALF-I</div>
+    </div>
+    <div id="status-text">READY</div>
+  </div>
+  <div id="bottom-area">
+    <div id="input-row">
+      <input id="input" type="text" placeholder="Type a message..." autofocus>
+      <button class="icon-btn" id="reset-btn" onclick="resetConversation()" title="New conversation">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      </button>
+      <button class="icon-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      </button>
+      <button class="icon-btn active" id="tts-toggle" onclick="toggleTTS()" title="Voice output">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      </button>
+      <button class="icon-btn" id="send-btn" onclick="sendMessage()" title="Send">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+      <button class="icon-btn" id="settings-btn" onclick="openSettings()" title="TV Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <button id="settings-close" onclick="closeSettings()">&times;</button>
+    <h2>TV Settings</h2>
+    <div class="setting-row">
+      <label>TV IP Address</label>
+      <input id="tv-ip-input" type="text" placeholder="e.g. 192.168.1.100">
+    </div>
+    <div class="setting-row">
+      <label>TV Brand (auto-detected if found)</label>
+      <select id="tv-type-select">
+        <option value="samsung">Samsung (port 8002)</option>
+        <option value="lg">LG (port 8080)</option>
+        <option value="roku">Roku (port 8060)</option>
+        <option value="philips">Philips (port 1925)</option>
+        <option value="sony">Sony (port 10000)</option>
+        <option value="apple">Apple TV (port 7000)</option>
+      </select>
+    </div>
+    <button id="scan-btn" onclick="scanNetwork()">Scan Network for TVs</button>
+    <div id="scan-status">Click scan to find TVs on your network</div>
+    <div id="device-list"></div>
+    <div class="tv-test-row">
+      <button class="tv-test-btn" onclick="testTvPower()">Test Power</button>
+      <button class="tv-test-btn" onclick="testTvVolume()">Test Vol</button>
+      <button class="tv-test-btn" onclick="testTvHome()">Test Home</button>
+    </div>
+    <button id="settings-save" onclick="saveTvSettings()">Save Settings</button>
+    <div class="settings-help">Make sure "Network Remote" or "IP Control" is enabled in your TV's network/expert settings. For Samsung: Settings → General → External Device Manager → Device Connect Manager → Access Notification → Off (or set to Always Allow).</div>
+  </div>
+</div>
+
+<script>
+const input = document.getElementById('input');
+const statusEl = document.getElementById('status-text');
+const voiceBtn = document.getElementById('voice-btn');
+const ttsBtn = document.getElementById('tts-toggle');
+const mouth = document.getElementById('mouth');
+const leftEye = document.getElementById('left-eye');
+const rightEye = document.getElementById('right-eye');
+const leftBrow = document.getElementById('left-brow');
+const rightBrow = document.getElementById('right-brow');
+
+let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
+localStorage.setItem('alfi_user_id', userId);
+let history = [];
+
+let tvIp = localStorage.getItem('alfi_tv_ip') || '';
+let tvType = localStorage.getItem('alfi_tv_type') || 'samsung';
+let scanAbort = false;
+
+// ---- Multi-brand remote key sender ----
+function tvSendKey(key) {
+  if (!tvIp) return;
+  const portMap = { samsung: 8002, lg: 8080, roku: 8060, philips: 1925, sony: 10000, apple: 7000 };
+  const port = portMap[tvType] || 8002;
+
+  if (tvType === 'samsung') {
+    try {
+      const ws = new WebSocket(`ws://${tvIp}:${port}/api/v2/channels/samsung.remote.control`);
+      ws.onopen = () => {
+        const p = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
+        ws.send(p);
+        setTimeout(() => ws.close(), 200);
+      };
+      ws.onerror = () => {};
+    } catch (e) {}
+    return;
+  }
+
+  if (tvType === 'lg') {
+    const LG_KEYS = { KEY_POWER:'POWER', KEY_VOLUP:'VOLUME_UP', KEY_VOLDOWN:'VOLUME_DOWN', KEY_MUTE:'MUTE', KEY_PLAY:'PLAY', KEY_PAUSE:'PAUSE', KEY_STOP:'STOP', KEY_UP:'UP', KEY_DOWN:'DOWN', KEY_LEFT:'LEFT', KEY_RIGHT:'RIGHT', KEY_ENTER:'ENTER', KEY_HOME:'HOME', KEY_BACK:'BACK', KEY_EXIT:'EXIT', KEY_MENU:'MENU' };
+    fetch(`http://${tvIp}:${port}/roapi/api/control`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({command:LG_KEYS[key]||key.replace('KEY_','')}) }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'roku') {
+    const ROKY_KEYS = { KEY_POWER:'Power', KEY_HOME:'Home', KEY_UP:'Up', KEY_DOWN:'Down', KEY_LEFT:'Left', KEY_RIGHT:'Right', KEY_ENTER:'Select', KEY_BACK:'Back', KEY_EXIT:'Back', KEY_PLAY:'Play', KEY_PAUSE:'Play', KEY_VOLUP:'VolumeUp', KEY_VOLDOWN:'VolumeDown', KEY_MUTE:'VolumeMute', KEY_MENU:'Info', KEY_NETFLIX:'Netflix', KEY_YOUTUBE:'YouTube', KEY_PRIME:'PrimeVideo', KEY_DISNEY_PLUS:'DisneyPlus', KEY_SPOTIFY:'Spotify', KEY_HBO:'HBO', KEY_CHUP:'ChannelUp', KEY_CHDOWN:'ChannelDown', KEY_0:'Lit_0', KEY_1:'Lit_1', KEY_2:'Lit_2', KEY_3:'Lit_3', KEY_4:'Lit_4', KEY_5:'Lit_5', KEY_6:'Lit_6', KEY_7:'Lit_7', KEY_8:'Lit_8', KEY_9:'Lit_9' };
+    fetch(`http://${tvIp}:${port}/keypress/${ROKY_KEYS[key]||key}`, { method:'POST' }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'philips') {
+    fetch(`http://${tvIp}:${port}/${key}`, { method:'POST' }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'sony') {
+    fetch(`http://${tvIp}:${port}/sony/IRCC`, { method:'POST', headers:{'Content-Type':'text/xml; charset=utf-8','SOAPACTION':'"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC"'}, body:`<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:X_SendIRCC xmlns:u="urn:schemas-sony-com:service:IRCC:1"><IRCCCode>${key}</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>` }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'apple') {
+    fetch(`http://${tvIp}:${port}/control`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key}) }).catch(()=>{});
+  }
+}
+
+// ---- App launcher ----
+const APP_KEYS = {
+  netflix:'KEY_NETFLIX', youtube:'KEY_YOUTUBE', 'prime video':'KEY_PRIME', 'amazon prime':'KEY_PRIME',
+  disney:'KEY_DISNEY_PLUS', 'disney+':'KEY_DISNEY_PLUS', spotify:'KEY_SPOTIFY',
+  hbo:'KEY_HBO', 'hbo max':'KEY_HBO',
+};
+const SAMSUNG_APP_IDS = {
+  netflix:'11101200001', youtube:'111299001912', 'prime video':'3201512006785',
+  'amazon prime':'3201512006785', disney:'3201901017640', 'disney+':'3201901017640',
+  spotify:'3201606009685', apple:'3201907018808', 'apple tv':'3201907018808',
+  plex:'9AC4AAB9D4.tizen.plex',
+};
+function tvOpenApp(app) {
+  const name = app.toLowerCase().trim();
+  if (APP_KEYS[name]) { tvSendKey(APP_KEYS[name]); return; }
+  if (tvType === 'samsung' && SAMSUNG_APP_IDS[name]) {
+    try {
+      const ws = new WebSocket(`ws://${tvIp}:8002/api/v2/applications/${SAMSUNG_APP_IDS[name]}`);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ method:'ms.channel.emit', params:{ event:'ed.apps.launch', to:'host', data:{ appId:SAMSUNG_APP_IDS[name], action_type:'NATIVE_LAUNCH' } } }));
+        setTimeout(() => ws.close(), 500);
+      };
+      ws.onerror = () => tvSendKey('KEY_HOME');
+    } catch(e) { tvSendKey('KEY_HOME'); }
+  } else { tvSendKey('KEY_HOME'); }
+}
+
+// ---- TV config from server ----
+async function loadTvConfig() {
+  try {
+    const res = await fetch('/api/tv/config');
+    const data = await res.json();
+    if (data.ip) { tvIp = data.ip; localStorage.setItem('alfi_tv_ip', tvIp); }
+    if (data.type) { tvType = data.type; localStorage.setItem('alfi_tv_type', tvType); }
+  } catch(e) {}
+}
+loadTvConfig();
+
+// ---- Network Discovery ----
+const TV_PORTS = [
+  { port: 8002, type: 'samsung', label: 'Samsung (WebSocket)' },
+  { port: 8080, type: 'lg', label: 'LG (HTTP)' },
+  { port: 8060, type: 'roku', label: 'Roku (HTTP)' },
+  { port: 1925, type: 'philips', label: 'Philips (HTTP)' },
+  { port: 10000, type: 'sony', label: 'Sony (HTTP)' },
+  { port: 7000, type: 'apple', label: 'Apple TV (HTTP)' },
+  { port: 3000, type: 'webos', label: 'WebOS (HTTP)' },
+];
+
+function getLocalSubnet() {
+  return new Promise(resolve => {
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then(o => pc.setLocalDescription(o));
+      pc.onicecandidate = e => {
+        if (!e || !e.candidate) return;
+        const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
+        if (m) { resolve(m[1]); pc.close(); }
+      };
+      setTimeout(() => { pc.close(); resolve('192.168.1'); }, 2000);
+    } catch(e) { resolve('192.168.1'); }
+  });
+}
+
+function probeWebSocket(ip, port, timeout) {
+  return new Promise(resolve => {
+    try {
+      const ws = new WebSocket(`ws://${ip}:${port}/api/v2/channels/samsung.remote.control`);
+      const t = setTimeout(() => { try { ws.close(); } catch(e) {} resolve(false); }, timeout);
+      ws.onopen = () => { clearTimeout(t); resolve(true); try { ws.close(); } catch(e) {} };
+      ws.onerror = () => { clearTimeout(t); resolve(false); };
+    } catch(e) { resolve(false); }
+  });
+}
+
+function probeHTTP(ip, port, timeout) {
+  return new Promise(resolve => {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), timeout);
+    fetch(`http://${ip}:${port}/`, { mode: 'no-cors', signal: c.signal })
+      .then(() => { clearTimeout(t); resolve(true); })
+      .catch(() => { clearTimeout(t); resolve(false); });
+  });
+}
+
+async function scanNetwork() {
+  const btn = document.getElementById('scan-btn');
+  const status = document.getElementById('scan-status');
+  const list = document.getElementById('device-list');
+  scanAbort = false;
+  btn.classList.add('scanning');
+  btn.textContent = 'Scanning...';
+  list.innerHTML = '';
+  status.textContent = 'Detecting your network...';
+
+  const subnet = await getLocalSubnet();
+  status.textContent = `Scanning ${subnet}.1-254 for TVs...`;
+  const found = [];
+
+  const batchSize = 20;
+  const allIPs = Array.from({length:254}, (_,i) => `${subnet}.${i+1}`);
+
+  for (let start = 0; start < allIPs.length && !scanAbort; start += batchSize) {
+    const batch = allIPs.slice(start, start + batchSize);
+    const results = await Promise.allSettled(batch.map(ip => probeWebSocket(ip, 8002, 500)));
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].value === true) {
+        found.push({ ip: batch[i], port: 8002, type: 'samsung', label: 'Samsung TV' });
+      }
+    }
+    status.textContent = `Scanning ${subnet}.1-254... ${Math.min(start+batchSize,254)}/254`;
+  }
+
+  for (const dev of found) {
+    const entry = document.createElement('div');
+    entry.className = 'device-entry';
+    entry.innerHTML = `<div class="dev-icon">📺</div><div class="dev-info"><div class="dev-ip">${dev.ip}</div><div class="dev-type">${dev.label}</div></div><div class="dev-status">Found</div>`;
+    entry.onclick = () => {
+      tvIp = dev.ip;
+      tvType = dev.type;
+      document.getElementById('tv-ip-input').value = tvIp;
+      document.getElementById('tv-type-select').value = tvType;
+      saveTvSettings();
+    };
+    list.appendChild(entry);
+  }
+
+  if (found.length === 0) {
+    list.innerHTML = '<div style="color:rgba(255,255,255,0.4);text-align:center;padding:16px;font-size:13px;">No TVs found on port 8002 (Samsung).<br>Try entering the IP manually above and select the correct brand.</div>';
+  }
+
+  btn.classList.remove('scanning');
+  btn.textContent = 'Scan Network for TVs';
+  if (!scanAbort) status.textContent = found.length > 0 ? `Found ${found.length} device(s). Tap one to select.` : 'Scan complete - no devices found';
+}
+
+// ---- Settings UI ----
+function openSettings() {
+  document.getElementById('tv-ip-input').value = tvIp;
+  document.getElementById('tv-type-select').value = tvType;
+  document.getElementById('settings-overlay').classList.add('open');
+}
+function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+function saveTvSettings() {
+  tvIp = document.getElementById('tv-ip-input').value.trim();
+  tvType = document.getElementById('tv-type-select').value;
+  localStorage.setItem('alfi_tv_ip', tvIp);
+  localStorage.setItem('alfi_tv_type', tvType);
+  closeSettings();
+}
+function testTvPower() {
+  const btn = event.target; btn.textContent='Sending...';
+  tvSendKey('KEY_POWER');
+  setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Power';btn.classList.remove('ok');},1500);},500);
+}
+function testTvVolume() {
+  const btn = event.target; btn.textContent='Sending...';
+  tvSendKey('KEY_VOLUP');
+  setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Vol';btn.classList.remove('ok');},1500);},500);
+}
+function testTvHome() {
+  const btn = event.target; btn.textContent='Sending...';
+  tvSendKey('KEY_HOME');
+  setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Home';btn.classList.remove('ok');},1500);},500);
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/sync?user_id=' + encodeURIComponent(userId));
+    const data = await res.json();
+    if (data.history && data.history.length) {
+      history = data.history;
+      localStorage.setItem('alfi_history', JSON.stringify(history));
+      console.log('Loaded', history.length, 'messages from server for', userId.slice(0, 8) + '...');
+    } else {
+      const saved = localStorage.getItem('alfi_history');
+      if (saved) history = JSON.parse(saved);
+      console.log('Server empty, loaded', history.length, 'from localStorage');
+    }
+  } catch (e) {
+    const saved = localStorage.getItem('alfi_history');
+    if (saved) history = JSON.parse(saved);
+    console.log('Load failed, loaded', history.length, 'from localStorage');
+  }
+}
+loadHistory();
+let ttsEnabled = true;
+let isListening = false;
+let isSpeaking = false;
+let isThinking = false;
+let recognition = null;
+let blinkTimer = null;
+let browTimer = null;
+let mouthAnimFrame = null;
+let mouthStart = 0;
+
+const face = document.getElementById('face');
+const pupils = document.querySelectorAll('.pupil');
+
+function blinkEyes() {
+  const dur = isThinking ? 250 : 100;
+  leftEye.classList.add('blink');
+  rightEye.classList.add('blink');
+  setTimeout(() => {
+    leftEye.classList.remove('blink');
+    rightEye.classList.remove('blink');
+  }, dur);
+  const next = isThinking ? 4000 + Math.random() * 3000 : 2000 + Math.random() * 4000;
+  blinkTimer = setTimeout(blinkEyes, next);
+}
+blinkEyes();
+
+function animateBrows() {
+  if (isThinking || isSpeaking) { browTimer = setTimeout(animateBrows, 1000); return; }
+  const both = Math.random() > 0.3;
+  if (both) { leftBrow.classList.add('raise'); rightBrow.classList.add('raise'); }
+  else if (Math.random() > 0.5) leftBrow.classList.add('raise');
+  else rightBrow.classList.add('raise');
+  setTimeout(() => {
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+  }, 500);
+  const next = 2000 + Math.random() * 4000;
+  browTimer = setTimeout(animateBrows, next);
+}
+animateBrows();
+
+function startThinking() {
+  isThinking = true;
+  face.classList.add('thinking');
+  leftBrow.classList.add('raise');
+  rightBrow.classList.add('raise');
+}
+
+function stopThinking() {
+  isThinking = false;
+  face.classList.remove('thinking');
+  leftBrow.classList.remove('raise');
+  rightBrow.classList.remove('raise');
+}
+
+function happyReaction() {
+  leftEye.classList.add('widen');
+  rightEye.classList.add('widen');
+  leftBrow.classList.add('raise');
+  rightBrow.classList.add('raise');
+  setTimeout(() => {
+    leftEye.classList.remove('widen');
+    rightEye.classList.remove('widen');
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+  }, 600);
+}
+
+function startMouthAnimation() {
+  mouth.classList.add('open');
+  mouthStart = performance.now();
+
+  function step(time) {
+    if (!isSpeaking) return;
+    const t = (time - mouthStart) / 1000;
+
+    const fSyllable = 4.5 + 1.2 * Math.sin(t * 0.4);
+    const fFast = 7 + 2 * Math.sin(t * 0.6 + 0.8);
+    const fPhrase = 1.4 + 0.6 * Math.sin(t * 0.25 + 1.5);
+
+    const vowels = Math.abs(Math.sin(t * fSyllable * Math.PI));
+    const consonants = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * fFast * Math.PI * 2));
+    const phrasing = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * fPhrase * Math.PI * 2));
+
+    let raw = vowels * 0.5 + consonants * 0.2 + phrasing * 0.3;
+    raw += Math.sin(t * 14.7 * Math.PI) * 0.04;
+    raw += Math.sin(t * 21.3 * Math.PI + 0.6) * 0.03;
+    raw += Math.sin(t * 33.1 * Math.PI + 1.8) * 0.02;
+
+    const openness = Math.max(0.08, Math.min(1, raw));
+    const minH = 5, maxH = 26;
+    const h = minH + openness * (maxH - minH);
+
+    const r = 2 + openness * 4;
+    mouth.style.height = h.toFixed(1) + 'px';
+    mouth.style.borderRadius = r.toFixed(1) + 'px';
+    mouthAnimFrame = requestAnimationFrame(step);
+  }
+  mouthAnimFrame = requestAnimationFrame(step);
+}
+
+function stopMouthAnimation() {
+  isSpeaking = false;
+  if (mouthAnimFrame) { cancelAnimationFrame(mouthAnimFrame); mouthAnimFrame = null; }
+  mouth.classList.remove('open');
+  mouth.style.height = '';
+  mouth.style.borderRadius = '';
+}
+
+function setSpeaking(val) {
+  isSpeaking = val;
+  if (val) {
+    leftBrow.classList.add('raise');
+    rightBrow.classList.add('raise');
+    startMouthAnimation();
+  } else {
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+    stopMouthAnimation();
+  }
+}
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+  recognition.onresult = function(e) {
+    input.value = e.results[0][0].transcript;
+    sendMessage();
+  };
+  recognition.onend = function() { isListening = false; voiceBtn.classList.remove('listening'); };
+  recognition.onerror = function() { isListening = false; voiceBtn.classList.remove('listening'); setStatus('VOICE ERROR'); };
+}
+
+function toggleVoice() {
+  if (!recognition) { setStatus('NOT SUPPORTED'); return; }
+  if (isListening) { recognition.stop(); return; }
+  isListening = true;
+  voiceBtn.classList.add('listening');
+  recognition.start();
+}
+
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  ttsBtn.classList.toggle('active');
+}
+
+let voicesCache = [];
+
+function loadVoices() {
+  voicesCache = window.speechSynthesis.getVoices();
+  console.log('Alf-I available voices:', voicesCache.map(v => v.name + ' [' + v.lang + ']').join(', '));
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function findVoice() {
+  const vs = window.speechSynthesis.getVoices();
+  const list = vs.length ? vs : voicesCache;
+  if (!list.length) return null;
+  const isF = n => /female|zoe|vanessa|karen|natya|fiona|catherine|serena|tracy|moira|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|susan|veena|yuri|aria|jenny/i.test(n);
+  const fems = list.filter(v => isF(v.name));
+  let v;
+  v = fems.find(x => x.lang.startsWith('en-AU')); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en-GB')); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en')); if (v) return v;
+  v = list.find(x => x.lang.startsWith('en-AU')); if (v) return v;
+  v = list.find(x => x.lang.startsWith('en-GB')); if (v) return v;
+  return null;
+}
+
+function speak(text) {
+  if (!ttsEnabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+  let idx = 0;
+  let voiceInfo = null;
+
+  function speakNext() {
+    if (idx >= parts.length) { setSpeaking(false); return; }
+    const u = new SpeechSynthesisUtterance(parts[idx].trim());
+    u.rate = 0.88;
+    u.pitch = 1.25 + (Math.sin(idx * 1.7) * 0.06);
+    const voice = findVoice();
+    if (voice) { u.voice = voice; if (!voiceInfo) voiceInfo = voice.name + ' ' + voice.lang; }
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => {
+      idx++;
+      const p = parts[idx - 1].trim();
+      const pause = /[,;:]$/.test(p) ? 180 : /[.!?]$/.test(p) ? 350 : 100;
+      setTimeout(speakNext, pause);
+    };
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
+  }
+  speakNext();
+  if (voiceInfo) console.log('Alf-I voice:', voiceInfo);
+  else console.log('Alf-I voice: default');
+}
+
+function saveHistory() {
+  localStorage.setItem('alfi_history', JSON.stringify(history));
+  console.log('Saving', history.length, 'messages for user', userId.slice(0, 8) + '...');
+  return fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, history: history })
+  }).catch(() => {});
+}
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  if (text.toUpperCase() === 'EXPORT') {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(history))));
+    const full = 'MEMORY:' + encoded;
+    try {
+      await navigator.clipboard.writeText(full);
+      setStatus('COPIED');
+    } catch (e) {
+      input.value = full;
+      input.select();
+      setStatus('COPY MANUALLY');
+    }
+    return;
+  }
+
+  const memMatch = text.match(/^MEMORY:(.+)/i);
+  if (memMatch) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(memMatch[1].trim()))));
+      if (Array.isArray(decoded) && decoded.length) {
+        history = decoded;
+        saveHistory();
+        setStatus('RESTORED');
+      } else {
+        setStatus('EMPTY');
+      }
+    } catch (e) {
+      setStatus('INVALID');
+    }
+    return;
+  }
+
+  setStatus('...');
+  startThinking();
+
+  history.push({ role: 'user', content: text });
+  saveHistory();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
+    });
+    const data = await res.json();
+    stopThinking();
+
+    if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
+
+    if (data.tv_command) {
+      const cmd = data.tv_command;
+      if (cmd.action === 'power_on') tvSendKey('KEY_POWER');
+      else if (cmd.action === 'power_off') tvSendKey('KEY_POWER');
+      else if (cmd.action === 'send_key') tvSendKey(cmd.key);
+      else if (cmd.action === 'open_app') tvOpenApp(cmd.app);
+    }
+
+    history.push({ role: 'assistant', content: data.content });
+    saveHistory();
+    setStatus('READY');
+    happyReaction();
+    setTimeout(() => speak(data.content), 300);
+  } catch (e) {
+    stopThinking();
+    setStatus('CONNECTION ERROR');
+  }
+}
+
+function resetConversation() {
+  if (!confirm('Are you sure you want to reset the conversation? This will clear all history.')) return;
+  history = [];
+  localStorage.removeItem('alfi_history');
+  saveHistory();
+  window.speechSynthesis.cancel();
+  setSpeaking(false);
+  setStatus('READY');
+  input.focus();
+}
+
+input.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+</script>
+</body>
+</html>
