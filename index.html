@@ -153,6 +153,7 @@
         <option value="sony">Sony</option>
       </select>
       <input id="tv-port" type="text" placeholder="Port (Roku: 8060, Samsung: 8001, LG: 3000)">
+      <input id="tv-mac" type="text" placeholder="MAC address (for WOL power on, e.g. AA:BB:CC:DD:EE:FF)">
       <button class="tv-btn-primary" id="connect-btn" onclick="manualConnect()">Connect</button>
       <button class="tv-btn-danger hidden" id="disconnect-btn" onclick="disconnectTv()">Disconnect TV</button>
     </div>
@@ -514,6 +515,7 @@ const tvStatusLabel = document.getElementById('tv-status-label');
 const tvIpInput = document.getElementById('tv-ip');
 const tvBrandSelect = document.getElementById('tv-brand');
 const tvPortInput = document.getElementById('tv-port');
+const tvMacInput = document.getElementById('tv-mac');
 
 function updateTvUi() {
   if (tvConfig.ip) {
@@ -523,9 +525,14 @@ function updateTvUi() {
     tvIpInput.value = tvConfig.ip;
     tvBrandSelect.value = tvConfig.brand || 'roku';
     tvPortInput.value = tvConfig.port || '';
+    tvMacInput.value = tvConfig.mac || '';
     scanBtn.classList.add('hidden');
     connectBtn.classList.add('hidden');
     document.querySelector('.tv-divider').classList.add('hidden');
+    tvIpInput.style.display = 'none';
+    tvBrandSelect.style.display = 'none';
+    tvPortInput.style.display = 'none';
+    tvMacInput.style.display = 'none';
     disconnectBtn.classList.remove('hidden');
   } else {
     tvBtn.classList.remove('connected');
@@ -533,12 +540,16 @@ function updateTvUi() {
     scanBtn.classList.remove('hidden');
     connectBtn.classList.remove('hidden');
     document.querySelector('.tv-divider').classList.remove('hidden');
+    tvIpInput.style.display = '';
+    tvBrandSelect.style.display = '';
+    tvPortInput.style.display = '';
+    tvMacInput.style.display = '';
     disconnectBtn.classList.add('hidden');
   }
 }
 
-function setTvConfig(ip, brand, port) {
-  tvConfig = { ip: ip || '', brand: (brand || 'roku').toLowerCase(), port: port || '' };
+function setTvConfig(ip, brand, port, mac) {
+  tvConfig = { ip: ip || '', brand: (brand || 'roku').toLowerCase(), port: port || '', mac: mac || '' };
   localStorage.setItem('alfi_tv_config', JSON.stringify(tvConfig));
   updateTvUi();
 }
@@ -625,8 +636,7 @@ async function probeIp(ip, found) {
 }
 
 function selectScanResult(ip, brand, port) {
-  setTvConfig(ip, brand, port);
-  toggleTvPanel();
+  manualConnect();
 }
 
 function manualConnect() {
@@ -634,32 +644,98 @@ function manualConnect() {
   if (!ip) { tvIpInput.focus(); return; }
   var brand = tvBrandSelect.value;
   var port = tvPortInput.value.trim() || '';
-  setTvConfig(ip, brand, port);
+  var mac = tvMacInput.value.trim().toUpperCase() || '';
+  setTvConfig(ip, brand, port, mac);
   toggleTvPanel();
 }
 
 function disconnectTv() {
-  setTvConfig('', 'roku', '');
+  setTvConfig('', 'roku', '', '');
+}
+
+function httpFetch(url) {
+  var c = new AbortController();
+  var t = setTimeout(function() { c.abort(); }, 3000);
+  return fetch(url, { method: 'POST', mode: 'no-cors', signal: c.signal }).then(function(r) {
+    clearTimeout(t); return r;
+  }).catch(function(e) {
+    clearTimeout(t); throw e;
+  });
+}
+
+async function sendWol(mac) {
+  if (!mac) return { success: false, error: 'No MAC configured' };
+  var clean = mac.replace(/[^A-Fa-f0-9]/g, '');
+  if (clean.length !== 12) return { success: false, error: 'Invalid MAC format' };
+
+  var gw = (tvConfig.ip || '').replace(/\.\d+$/, '.1');
+  var routers = [gw, '192.168.1.1', '192.168.0.1', '10.0.0.1'];
+  var unique = routers.filter(function(v, i, a) { return a.indexOf(v) === i; });
+
+  var endpoints = [
+    '/wol?mac=' + mac,
+    '/cgi-bin/wol?mac=' + mac,
+    '/Action_sendCustomizedWOL?mac=' + clean,
+    '/wol.php?mac=' + mac
+  ];
+
+  for (var r = 0; r < unique.length; r++) {
+    for (var e = 0; e < endpoints.length; e++) {
+      try {
+        var c = new AbortController();
+        var t = setTimeout(function() { c.abort(); }, 600);
+        await fetch('http://' + unique[r] + endpoints[e], { method: 'GET', mode: 'no-cors', signal: c.signal });
+        clearTimeout(t);
+        return { success: true, method: 'WOL via router' };
+      } catch (err) {}
+    }
+  }
+  return { success: false, error: 'WOL unavailable from browser' };
 }
 
 async function executeTvCommand(command, value) {
   const ip = tvConfig.ip;
   if (!ip) { toggleTvPanel(); return { success: false, error: 'TV not configured', needsConfig: true }; }
   const brand = (tvConfig.brand || 'roku').toLowerCase();
+  const port = tvConfig.port || '8060';
   try {
-    if (brand === 'roku') return rokuCommand(ip, tvConfig.port || '8060', command, value);
+    if (command === 'power_on') return powerOnTv(ip, port, brand);
+    if (brand === 'roku') return rokuCommand(ip, port, command, value);
     if (brand === 'samsung') return samsungCommand(ip, command, value);
     return { success: false, error: 'Unsupported brand: ' + brand };
   } catch (e) { return { success: false, error: e.message }; }
 }
 
+async function powerOnTv(ip, port, brand) {
+  if (brand === 'roku') {
+    try {
+      await httpFetch('http://' + ip + ':' + port + '/keypress/PowerOn');
+      return { success: true, msg: 'Sent PowerOn (TV must be in standby)' };
+    } catch (e) {}
+    try {
+      await httpFetch('http://' + ip + ':' + port + '/keypress/Power');
+      return { success: true, msg: 'Sent Power toggle (TV must be in standby)' };
+    } catch (e) {}
+  }
+  if (brand === 'samsung') {
+    try {
+      return await samsungCommand(ip, 'power_toggle');
+    } catch (e) {}
+  }
+  if (tvConfig.mac) {
+    var wol = await sendWol(tvConfig.mac);
+    if (wol.success) return { success: true, msg: 'Sent WOL packet' };
+  }
+  return { success: false, error: 'TV is off and unreachable. For power-on to work over network, enable "Fast TV Start" / "Network Standby" on your TV, or enter its MAC address in TV settings for Wake-on-LAN.' };
+}
+
 async function rokuCommand(ip, port, command, value) {
   const base = 'http://' + ip + ':' + port;
   const appIds = { 'launch_netflix': '12', 'launch_youtube': '837', 'launch_prime_video': '13', 'launch_hulu': '2285', 'launch_disney_plus': '291097' };
-  const keyMap = { 'power_on': 'PowerOn', 'power_off': 'PowerOff', 'power_toggle': 'Power', 'volume_up': 'VolumeUp', 'volume_down': 'VolumeDown', 'mute_toggle': 'VolumeMute', 'home': 'Home', 'back': 'Back', 'ok': 'Select', 'up': 'Up', 'down': 'Down', 'left': 'Left', 'right': 'Right', 'input_hdmi1': 'InputHDMI1', 'input_hdmi2': 'InputHDMI2', 'input_hdmi3': 'InputHDMI3', 'input_av': 'InputAV1', 'input_tv': 'InputTuner', 'channel_up': 'ChannelUp', 'channel_down': 'ChannelDown', 'settings': 'Settings', 'source': 'Input', 'guide': 'Guide', 'info': 'Info' };
-  if (command === 'launch_app' && value) { await fetch(base + '/launch/' + value, { method: 'POST', mode: 'no-cors' }); return { success: true }; }
-  if (appIds[command]) { await fetch(base + '/launch/' + appIds[command], { method: 'POST', mode: 'no-cors' }); return { success: true }; }
-  if (keyMap[command]) { await fetch(base + '/keypress/' + keyMap[command], { method: 'POST', mode: 'no-cors' }); return { success: true }; }
+  const keyMap = { 'power_off': 'PowerOff', 'power_toggle': 'Power', 'volume_up': 'VolumeUp', 'volume_down': 'VolumeDown', 'mute_toggle': 'VolumeMute', 'home': 'Home', 'back': 'Back', 'ok': 'Select', 'up': 'Up', 'down': 'Down', 'left': 'Left', 'right': 'Right', 'input_hdmi1': 'InputHDMI1', 'input_hdmi2': 'InputHDMI2', 'input_hdmi3': 'InputHDMI3', 'input_av': 'InputAV1', 'input_tv': 'InputTuner', 'channel_up': 'ChannelUp', 'channel_down': 'ChannelDown', 'settings': 'Settings', 'source': 'Input', 'guide': 'Guide', 'info': 'Info' };
+  if (command === 'launch_app' && value) { await httpFetch(base + '/launch/' + value); return { success: true }; }
+  if (appIds[command]) { await httpFetch(base + '/launch/' + appIds[command]); return { success: true }; }
+  if (keyMap[command]) { await httpFetch(base + '/keypress/' + keyMap[command]); return { success: true }; }
   return { success: false, error: 'Unknown command' };
 }
 

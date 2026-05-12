@@ -57,6 +57,10 @@ SYSTEM_PROMPT = (
     "LG WebSocket on 3000/3001, Sony REST API), "
     "HDMI-CEC, Bluetooth/BLE HID, Wake-on-LAN (magic packet on UDP 9), "
     "and cloud services (SmartThings, HomeKit, Google Home)."
+    "\nIMPORTANT: Power-on (power_on) only works when the TV is in standby/network standby mode. "
+    "If the TV is fully powered off, network control won't work. "
+    "In that case, suggest enabling 'Fast TV Start' or 'Network Standby' on the TV, "
+    "or configuring WOL with the TV's MAC address."
     "\nWhen the user asks to control their TV, use the tv_control function. "
     "Never mention the function calling mechanism to the user."
 )
