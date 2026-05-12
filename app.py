@@ -133,6 +133,53 @@ def sync():
     return jsonify({"history": hist or []})
 
 
+@app.route("/api/tv/discover", methods=["POST"])
+def api_tv_discover():
+    try:
+        tvs = tv_control.discover_tvs()
+        return jsonify({"tvs": tvs})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tv/pair", methods=["POST"])
+def api_tv_pair():
+    data = request.get_json()
+    ip = data.get("ip")
+    tv_type = data.get("tv_type")
+    code = data.get("pairing_code")
+    if not ip or not tv_type or not code:
+        return jsonify({"error": "ip, tv_type, and pairing_code required"}), 400
+    result = tv_control.pair_tv(ip, tv_type, code)
+    return jsonify(result)
+
+
+@app.route("/api/tv/command", methods=["POST"])
+def api_tv_command():
+    data = request.get_json()
+    ip = data.get("ip")
+    command = data.get("command")
+    if not ip or not command:
+        return jsonify({"error": "ip and command required"}), 400
+    result = tv_control.send_remote_command(ip, command)
+    return jsonify(result)
+
+
+@app.route("/api/tv/status", methods=["GET"])
+def api_tv_status():
+    return jsonify({"paired": tv_control.get_paired_tvs()})
+
+
+@app.route("/api/tv/disconnect", methods=["POST"])
+def api_tv_disconnect():
+    data = request.get_json()
+    ip = data.get("ip")
+    if not ip:
+        return jsonify({"error": "ip required"}), 400
+    tv_control.disconnect(ip)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json()
