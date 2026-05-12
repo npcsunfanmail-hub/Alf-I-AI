@@ -212,3 +212,25 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": repr(e)}), 500
+
+
+@app.route("/api/tv/network-check", methods=["GET"])
+def api_network_check():
+    import socket
+    try:
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+        is_private = local_ip.startswith(("192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."))
+        return jsonify({
+            "hostname": hostname,
+            "local_ip": local_ip,
+            "on_private_network": is_private,
+            "message": "Local network detected" if is_private else "Not on a private LAN - TV discovery requires running this app on your local machine, not on Vercel."
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "on_private_network": False})
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)

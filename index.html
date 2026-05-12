@@ -590,10 +590,24 @@ async function scanTVs() {
   setTVStatus('');
 
   try {
+    const netCheck = await fetch('/api/tv/network-check');
+    const netInfo = await netCheck.json();
+    if (!netInfo.on_private_network) {
+      list.innerHTML = '<div id="tv-empty">This app is running in the cloud (Vercel) and cannot see your local WiFi network. Run this app locally with "python app.py" on your desktop for TV discovery to work.</div>';
+      setTVStatus('Not on local network - run app locally', 'error');
+      btn.disabled = false;
+      btn.classList.remove('scanning');
+      btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg> Scan for TVs';
+      return;
+    }
+
     const res = await fetch('/api/tv/discover', { method: 'POST' });
     const data = await res.json();
     if (data.error) { setTVStatus(data.error, 'error'); list.innerHTML = '<div id="tv-empty">Error scanning</div>'; return; }
-    if (!data.tvs || !data.tvs.length) { list.innerHTML = '<div id="tv-empty">No TVs found. Make sure your TV is on the same WiFi network.</div>'; return; }
+    if (!data.tvs || !data.tvs.length) {
+      list.innerHTML = '<div id="tv-empty">No TVs found. Try these fixes:\n\u2022 Make sure your TV is powered on and on the same WiFi network\n\u2022 On your TV, start the "Remote App" or "SmartThings" feature\n\u2022 Temporarily disable Windows Firewall and try again</div>';
+      return;
+    }
     list.innerHTML = '';
     data.tvs.forEach(tv => {
       const el = document.createElement('div');

@@ -2,22 +2,22 @@ import socket
 import json
 import time
 import uuid
+import struct
+import threading
 import requests
 from typing import Optional
-
-SSDP_MSEARCH = (
-    "M-SEARCH * HTTP/1.1\r\n"
-    "HOST: 239.255.255.250:1900\r\n"
-    "MAN: \"ssdp:discover\"\r\n"
-    "MX: 5\r\n"
-    "ST: ssdp:all\r\n"
-    "\r\n"
-)
 
 SSDP_ADDR = "239.255.255.250"
 SSDP_PORT = 1900
 RECV_BUF = 65535
 DISCOVER_TIMEOUT = 6
+
+SSDP_TARGETS = [
+    "ssdp:all",
+    "upnp:rootdevice",
+    "urn:schemas-upnp-org:device:MediaRenderer:1",
+    "urn:schemas-upnp-org:device:MediaServer:1",
+]
 
 TV_KEYWORDS = {
     "samsung": ["samsung", "sec", "dlna"],
@@ -35,17 +35,55 @@ TV_KEYWORDS = {
     "apple tv": ["appletv"],
 }
 
-def discover_tvs(timeout: int = DISCOVER_TIMEOUT) -> list[dict]:
+COMMON_TV_PORTS = [8001, 8002, 8080, 8060, 5001, 55000, 3000, 5020, 1925, 6000, 10000]
+
+
+def _send_ssdp_msearch(sock, target):
+    msg = (
+        "M-SEARCH * HTTP/1.1\r\n"
+        f"HOST: {SSDP_ADDR}:{SSDP_PORT}\r\n"
+        'MAN: "ssdp:discover"\r\n'
+        "MX: 4\r\n"
+        f"ST: {target}\r\n"
+        "\r\n"
+    )
+    try:
+        sock.sendto(msg.encode(), (SSDP_ADDR, SSDP_PORT))
+    except Exception:
+        pass
+
+
+def _parse_ssdp_headers(text: str) -> dict:
+    headers = {}
+    for line in text.split("\r\n"):
+        if ":" in line:
+            k, _, v = line.partition(":")
+            headers[k.strip().upper()] = v.strip()
+    return headers
+
+
+def _ssdp_discover(timeout: int) -> list[dict]:
     discovered = []
     seen = set()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 4)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
     sock.settimeout(timeout)
     sock.bind(("0.0.0.0", 0))
 
     try:
-        sock.sendto(SSDP_MSEARCH.encode(), (SSDP_ADDR, SSDP_PORT))
+        mreq = struct.pack("4sl", socket.inet_aton(SSDP_ADDR), socket.INADDR_ANY)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    except Exception:
+        pass
+
+    try:
+        for target in SSDP_TARGETS:
+            _send_ssdp_msearch(sock, target)
+            time.sleep(0.05)
+
         start = time.time()
         while time.time() - start < timeout:
             try:
@@ -56,39 +94,112 @@ def discover_tvs(timeout: int = DISCOVER_TIMEOUT) -> list[dict]:
                 continue
             seen.add(addr[0])
 
-            text = data.decode("utf-8", errors="replace")
-            headers = {}
-            for line in text.split("\r\n"):
-                if ":" in line:
-                    k, _, v = line.partition(":")
-                    headers[k.strip().upper()] = v.strip()
-
+            headers = _parse_ssdp_headers(data.decode("utf-8", errors="replace"))
             server = (headers.get("SERVER", "") + " " + headers.get("X-USER-AGENT", "")).lower()
             location = headers.get("LOCATION", "")
             st = headers.get("ST", "")
-            usn = headers.get("USN", "")
             friendly = headers.get("FRIENDLYNAME", headers.get("FRIENDLY-NAME", headers.get("X-FRIENDLY-NAME", "")))
 
             tv_type = _identify_tv(server, st, location)
             if not tv_type:
                 if any(k in server for k in ["media", "tv", "display", "screen"]) or "mediarenderer" in st.lower():
                     tv_type = "unknown"
+                else:
+                    continue
 
-            if tv_type:
-                discovered.append({
-                    "ip": addr[0],
-                    "type": tv_type,
-                    "server": server[:120],
-                    "location": location,
-                    "st": st,
-                    "usn": usn,
-                    "friendly_name": friendly,
-                })
+            discovered.append({
+                "ip": addr[0],
+                "type": tv_type,
+                "server": server[:120],
+                "location": location,
+                "st": st,
+                "friendly_name": friendly,
+                "found_by": "ssdp",
+            })
 
     finally:
+        try:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_DROP_MEMBERSHIP, mreq)
+        except Exception:
+            pass
         sock.close()
 
     return discovered
+
+
+def _port_scan_fallback() -> list[dict]:
+    discovered = []
+
+    local_ip = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        return []
+
+    subnet = ".".join(local_ip.split(".")[:3])
+    seen_ips = set()
+    lock = threading.Lock()
+
+    def _check(ip):
+        if ip in seen_ips:
+            return
+        for port in COMMON_TV_PORTS:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(0.5)
+                if s.connect_ex((ip, port)) == 0:
+                    with lock:
+                        if ip not in seen_ips:
+                            seen_ips.add(ip)
+                            discovered.append({
+                                "ip": ip,
+                                "port": port,
+                                "friendly_name": f"Device (port {port})",
+                                "found_by": "port_scan",
+                            })
+                s.close()
+            except Exception:
+                pass
+
+    threads = []
+    for i in range(1, 255):
+        t = threading.Thread(target=_check, args=(f"{subnet}.{i}",), daemon=True)
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join(timeout=15)
+
+    return discovered
+
+
+def discover_tvs(timeout: int = DISCOVER_TIMEOUT) -> list[dict]:
+    result = {"ssdp": [], "port_scan": [], "error": None}
+
+    try:
+        result["ssdp"] = _ssdp_discover(timeout)
+    except Exception as e:
+        result["error"] = f"SSDP discovery failed: {e}. Windows Firewall may be blocking UDP traffic on port 1900."
+
+    if not result["ssdp"]:
+        try:
+            result["port_scan"] = _port_scan_fallback()
+        except Exception as e:
+            if not result["error"]:
+                result["error"] = f"Port scan failed: {e}"
+
+    all_tvs = result["ssdp"] + result["port_scan"]
+    seen_ips = set()
+    deduped = []
+    for tv in all_tvs:
+        if tv["ip"] not in seen_ips:
+            seen_ips.add(tv["ip"])
+            deduped.append(tv)
+
+    return deduped
 
 def _identify_tv(server: str, st: str, location: str) -> Optional[str]:
     combined = f"{server} {st} {location}".lower()
