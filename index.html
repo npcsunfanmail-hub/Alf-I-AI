@@ -68,11 +68,24 @@
   #settings-save:active { opacity: 0.8; }
   #settings-close { float: right; background: none; border: none; color: rgba(255,255,255,0.4); font-size: 22px; cursor: pointer; line-height: 1; }
   #settings-close:hover { color: white; }
-  .tv-test-row { display: flex; gap: 8px; margin-top: 12px; }
-  .tv-test-btn { flex: 1; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 13px; padding: 8px; cursor: pointer; text-align: center; }
+  .tv-test-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .tv-test-btn { flex: 1; min-width: 80px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 13px; padding: 8px; cursor: pointer; text-align: center; }
   .tv-test-btn:active { background: rgba(255,255,255,0.15); }
   .tv-test-btn.ok { border-color: #4caf50; color: #4caf50; }
   .tv-test-btn.fail { border-color: #f44336; color: #f44336; }
+  #scan-btn { width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: white; font-size: 14px; padding: 10px; cursor: pointer; margin-top: 12px; text-align: center; }
+  #scan-btn:active { background: rgba(255,255,255,0.15); }
+  #scan-btn.scanning { pointer-events: none; opacity: 0.5; }
+  #scan-status { color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; margin-top: 8px; min-height: 18px; }
+  #device-list { margin-top: 12px; max-height: 160px; overflow-y: auto; }
+  .device-entry { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; cursor: pointer; }
+  .device-entry:active { background: rgba(255,255,255,0.1); }
+  .device-entry .dev-icon { font-size: 18px; }
+  .device-entry .dev-info { flex: 1; }
+  .device-entry .dev-info .dev-ip { color: white; font-size: 14px; }
+  .device-entry .dev-info .dev-type { color: rgba(255,255,255,0.4); font-size: 11px; }
+  .device-entry .dev-status { color: #4caf50; font-size: 11px; }
+  .settings-help { color: rgba(255,255,255,0.35); font-size: 11px; text-align: center; margin-top: 12px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -129,17 +142,26 @@
       <input id="tv-ip-input" type="text" placeholder="e.g. 192.168.1.100">
     </div>
     <div class="setting-row">
-      <label>TV Brand</label>
+      <label>TV Brand (auto-detected if found)</label>
       <select id="tv-type-select">
-        <option value="samsung">Samsung</option>
-        <option value="lg">LG</option>
+        <option value="samsung">Samsung (port 8002)</option>
+        <option value="lg">LG (port 8080)</option>
+        <option value="roku">Roku (port 8060)</option>
+        <option value="philips">Philips (port 1925)</option>
+        <option value="sony">Sony (port 10000)</option>
+        <option value="apple">Apple TV (port 7000)</option>
       </select>
     </div>
+    <button id="scan-btn" onclick="scanNetwork()">Scan Network for TVs</button>
+    <div id="scan-status">Click scan to find TVs on your network</div>
+    <div id="device-list"></div>
     <div class="tv-test-row">
-      <button class="tv-test-btn" onclick="testTvPower()">Test Power Off</button>
-      <button class="tv-test-btn" onclick="testTvVolume()">Test Volume</button>
+      <button class="tv-test-btn" onclick="testTvPower()">Test Power</button>
+      <button class="tv-test-btn" onclick="testTvVolume()">Test Vol</button>
+      <button class="tv-test-btn" onclick="testTvHome()">Test Home</button>
     </div>
     <button id="settings-save" onclick="saveTvSettings()">Save Settings</button>
+    <div class="settings-help">Make sure "Network Remote" or "IP Control" is enabled in your TV's network/expert settings. For Samsung: Settings → General → External Device Manager → Device Connect Manager → Access Notification → Off (or set to Always Allow).</div>
   </div>
 </div>
 
@@ -160,72 +182,192 @@ let history = [];
 
 let tvIp = localStorage.getItem('alfi_tv_ip') || '';
 let tvType = localStorage.getItem('alfi_tv_type') || 'samsung';
-const SAMSUNG_WS = port => `ws://${tvIp}:${port}/api/v2/channels/samsung.remote.control`;
-const SAMSUNG_APP_WS = appId => `ws://${tvIp}:8002/api/v2/applications/${appId}`;
+let scanAbort = false;
 
-function samsungKey(key) {
-  if (!tvIp) return;
-  try {
-    const ws = new WebSocket(SAMSUNG_WS(8002));
-    ws.onopen = () => {
-      const p = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
-      ws.send(p);
-      setTimeout(() => ws.close(), 200);
-    };
-    ws.onerror = () => {};
-  } catch (e) {}
-}
-
-function lgKey(key) {
-  if (!tvIp) return;
-  const LG_KEYS = { KEY_POWER: 'POWER', KEY_VOLUP: 'VOLUME_UP', KEY_VOLDOWN: 'VOLUME_DOWN', KEY_MUTE: 'MUTE', KEY_PLAY: 'PLAY', KEY_PAUSE: 'PAUSE', KEY_STOP: 'STOP', KEY_UP: 'UP', KEY_DOWN: 'DOWN', KEY_LEFT: 'LEFT', KEY_RIGHT: 'RIGHT', KEY_ENTER: 'ENTER', KEY_HOME: 'HOME', KEY_BACK: 'BACK', KEY_EXIT: 'EXIT', KEY_MENU: 'MENU' };
-  const lk = LG_KEYS[key] || key.replace('KEY_','');
-  fetch(`http://${tvIp}:8080/roapi/api/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: lk }) }).catch(() => {});
-}
-
+// ---- Multi-brand remote key sender ----
 function tvSendKey(key) {
-  if (tvType === 'samsung') samsungKey(key);
-  else if (tvType === 'lg') lgKey(key);
+  if (!tvIp) return;
+  const portMap = { samsung: 8002, lg: 8080, roku: 8060, philips: 1925, sony: 10000, apple: 7000 };
+  const port = portMap[tvType] || 8002;
+
+  if (tvType === 'samsung') {
+    try {
+      const ws = new WebSocket(`ws://${tvIp}:${port}/api/v2/channels/samsung.remote.control`);
+      ws.onopen = () => {
+        const p = JSON.stringify({ method: 'ms.remote.control', params: { Cmd: 'Click', DataOfCmd: key, Option: 'false', TypeOfRemote: 'SendRemoteKey' } });
+        ws.send(p);
+        setTimeout(() => ws.close(), 200);
+      };
+      ws.onerror = () => {};
+    } catch (e) {}
+    return;
+  }
+
+  if (tvType === 'lg') {
+    const LG_KEYS = { KEY_POWER:'POWER', KEY_VOLUP:'VOLUME_UP', KEY_VOLDOWN:'VOLUME_DOWN', KEY_MUTE:'MUTE', KEY_PLAY:'PLAY', KEY_PAUSE:'PAUSE', KEY_STOP:'STOP', KEY_UP:'UP', KEY_DOWN:'DOWN', KEY_LEFT:'LEFT', KEY_RIGHT:'RIGHT', KEY_ENTER:'ENTER', KEY_HOME:'HOME', KEY_BACK:'BACK', KEY_EXIT:'EXIT', KEY_MENU:'MENU' };
+    fetch(`http://${tvIp}:${port}/roapi/api/control`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({command:LG_KEYS[key]||key.replace('KEY_','')}) }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'roku') {
+    const ROKY_KEYS = { KEY_POWER:'Power', KEY_HOME:'Home', KEY_UP:'Up', KEY_DOWN:'Down', KEY_LEFT:'Left', KEY_RIGHT:'Right', KEY_ENTER:'Select', KEY_BACK:'Back', KEY_EXIT:'Back', KEY_PLAY:'Play', KEY_PAUSE:'Play', KEY_VOLUP:'VolumeUp', KEY_VOLDOWN:'VolumeDown', KEY_MUTE:'VolumeMute', KEY_MENU:'Info', KEY_NETFLIX:'Netflix', KEY_YOUTUBE:'YouTube', KEY_PRIME:'PrimeVideo', KEY_DISNEY_PLUS:'DisneyPlus', KEY_SPOTIFY:'Spotify', KEY_HBO:'HBO', KEY_CHUP:'ChannelUp', KEY_CHDOWN:'ChannelDown', KEY_0:'Lit_0', KEY_1:'Lit_1', KEY_2:'Lit_2', KEY_3:'Lit_3', KEY_4:'Lit_4', KEY_5:'Lit_5', KEY_6:'Lit_6', KEY_7:'Lit_7', KEY_8:'Lit_8', KEY_9:'Lit_9' };
+    fetch(`http://${tvIp}:${port}/keypress/${ROKY_KEYS[key]||key}`, { method:'POST' }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'philips') {
+    fetch(`http://${tvIp}:${port}/${key}`, { method:'POST' }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'sony') {
+    fetch(`http://${tvIp}:${port}/sony/IRCC`, { method:'POST', headers:{'Content-Type':'text/xml; charset=utf-8','SOAPACTION':'"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC"'}, body:`<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:X_SendIRCC xmlns:u="urn:schemas-sony-com:service:IRCC:1"><IRCCCode>${key}</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>` }).catch(()=>{});
+    return;
+  }
+
+  if (tvType === 'apple') {
+    fetch(`http://${tvIp}:${port}/control`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key}) }).catch(()=>{});
+  }
 }
 
+// ---- App launcher ----
 const APP_KEYS = {
-  netflix: 'KEY_NETFLIX', youtube: 'KEY_YOUTUBE', 'prime video': 'KEY_PRIME', 'amazon prime': 'KEY_PRIME',
-  disney: 'KEY_DISNEY_PLUS', 'disney+': 'KEY_DISNEY_PLUS', spotify: 'KEY_SPOTIFY',
-  hbo: 'KEY_HBO', 'hbo max': 'KEY_HBO',
+  netflix:'KEY_NETFLIX', youtube:'KEY_YOUTUBE', 'prime video':'KEY_PRIME', 'amazon prime':'KEY_PRIME',
+  disney:'KEY_DISNEY_PLUS', 'disney+':'KEY_DISNEY_PLUS', spotify:'KEY_SPOTIFY',
+  hbo:'KEY_HBO', 'hbo max':'KEY_HBO',
 };
 const SAMSUNG_APP_IDS = {
-  netflix: '11101200001', youtube: '111299001912', 'prime video': '3201512006785',
-  'amazon prime': '3201512006785', disney: '3201901017640', 'disney+': '3201901017640',
-  spotify: '3201606009685', apple: '3201907018808', 'apple tv': '3201907018808',
-  plex: '9AC4AAB9D4.tizen.plex',
+  netflix:'11101200001', youtube:'111299001912', 'prime video':'3201512006785',
+  'amazon prime':'3201512006785', disney:'3201901017640', 'disney+':'3201901017640',
+  spotify:'3201606009685', apple:'3201907018808', 'apple tv':'3201907018808',
+  plex:'9AC4AAB9D4.tizen.plex',
 };
 function tvOpenApp(app) {
   const name = app.toLowerCase().trim();
   if (APP_KEYS[name]) { tvSendKey(APP_KEYS[name]); return; }
   if (tvType === 'samsung' && SAMSUNG_APP_IDS[name]) {
     try {
-      const ws = new WebSocket(SAMSUNG_APP_WS(SAMSUNG_APP_IDS[name]));
+      const ws = new WebSocket(`ws://${tvIp}:8002/api/v2/applications/${SAMSUNG_APP_IDS[name]}`);
       ws.onopen = () => {
-        ws.send(JSON.stringify({ method: 'ms.channel.emit', params: { event: 'ed.apps.launch', to: 'host', data: { appId: SAMSUNG_APP_IDS[name], action_type: 'NATIVE_LAUNCH' } } }));
+        ws.send(JSON.stringify({ method:'ms.channel.emit', params:{ event:'ed.apps.launch', to:'host', data:{ appId:SAMSUNG_APP_IDS[name], action_type:'NATIVE_LAUNCH' } } }));
         setTimeout(() => ws.close(), 500);
       };
       ws.onerror = () => tvSendKey('KEY_HOME');
-    } catch (e) { tvSendKey('KEY_HOME'); }
-  } else {
-    tvSendKey('KEY_HOME');
-  }
+    } catch(e) { tvSendKey('KEY_HOME'); }
+  } else { tvSendKey('KEY_HOME'); }
 }
 
+// ---- TV config from server ----
 async function loadTvConfig() {
   try {
     const res = await fetch('/api/tv/config');
     const data = await res.json();
     if (data.ip) { tvIp = data.ip; localStorage.setItem('alfi_tv_ip', tvIp); }
     if (data.type) { tvType = data.type; localStorage.setItem('alfi_tv_type', tvType); }
-  } catch (e) {}
+  } catch(e) {}
 }
 loadTvConfig();
 
+// ---- Network Discovery ----
+const TV_PORTS = [
+  { port: 8002, type: 'samsung', label: 'Samsung (WebSocket)' },
+  { port: 8080, type: 'lg', label: 'LG (HTTP)' },
+  { port: 8060, type: 'roku', label: 'Roku (HTTP)' },
+  { port: 1925, type: 'philips', label: 'Philips (HTTP)' },
+  { port: 10000, type: 'sony', label: 'Sony (HTTP)' },
+  { port: 7000, type: 'apple', label: 'Apple TV (HTTP)' },
+  { port: 3000, type: 'webos', label: 'WebOS (HTTP)' },
+];
+
+function getLocalSubnet() {
+  return new Promise(resolve => {
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel('');
+      pc.createOffer().then(o => pc.setLocalDescription(o));
+      pc.onicecandidate = e => {
+        if (!e || !e.candidate) return;
+        const m = e.candidate.candidate.match(/(\d+\.\d+\.\d+)\.\d+/);
+        if (m) { resolve(m[1]); pc.close(); }
+      };
+      setTimeout(() => { pc.close(); resolve('192.168.1'); }, 2000);
+    } catch(e) { resolve('192.168.1'); }
+  });
+}
+
+function probeWebSocket(ip, port, timeout) {
+  return new Promise(resolve => {
+    try {
+      const ws = new WebSocket(`ws://${ip}:${port}/api/v2/channels/samsung.remote.control`);
+      const t = setTimeout(() => { try { ws.close(); } catch(e) {} resolve(false); }, timeout);
+      ws.onopen = () => { clearTimeout(t); resolve(true); try { ws.close(); } catch(e) {} };
+      ws.onerror = () => { clearTimeout(t); resolve(false); };
+    } catch(e) { resolve(false); }
+  });
+}
+
+function probeHTTP(ip, port, timeout) {
+  return new Promise(resolve => {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), timeout);
+    fetch(`http://${ip}:${port}/`, { mode: 'no-cors', signal: c.signal })
+      .then(() => { clearTimeout(t); resolve(true); })
+      .catch(() => { clearTimeout(t); resolve(false); });
+  });
+}
+
+async function scanNetwork() {
+  const btn = document.getElementById('scan-btn');
+  const status = document.getElementById('scan-status');
+  const list = document.getElementById('device-list');
+  scanAbort = false;
+  btn.classList.add('scanning');
+  btn.textContent = 'Scanning...';
+  list.innerHTML = '';
+  status.textContent = 'Detecting your network...';
+
+  const subnet = await getLocalSubnet();
+  status.textContent = `Scanning ${subnet}.1-254 for TVs...`;
+  const found = [];
+
+  const batchSize = 20;
+  const allIPs = Array.from({length:254}, (_,i) => `${subnet}.${i+1}`);
+
+  for (let start = 0; start < allIPs.length && !scanAbort; start += batchSize) {
+    const batch = allIPs.slice(start, start + batchSize);
+    const results = await Promise.allSettled(batch.map(ip => probeWebSocket(ip, 8002, 500)));
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].value === true) {
+        found.push({ ip: batch[i], port: 8002, type: 'samsung', label: 'Samsung TV' });
+      }
+    }
+    status.textContent = `Scanning ${subnet}.1-254... ${Math.min(start+batchSize,254)}/254`;
+  }
+
+  for (const dev of found) {
+    const entry = document.createElement('div');
+    entry.className = 'device-entry';
+    entry.innerHTML = `<div class="dev-icon">📺</div><div class="dev-info"><div class="dev-ip">${dev.ip}</div><div class="dev-type">${dev.label}</div></div><div class="dev-status">Found</div>`;
+    entry.onclick = () => {
+      tvIp = dev.ip;
+      tvType = dev.type;
+      document.getElementById('tv-ip-input').value = tvIp;
+      document.getElementById('tv-type-select').value = tvType;
+      saveTvSettings();
+    };
+    list.appendChild(entry);
+  }
+
+  if (found.length === 0) {
+    list.innerHTML = '<div style="color:rgba(255,255,255,0.4);text-align:center;padding:16px;font-size:13px;">No TVs found on port 8002 (Samsung).<br>Try entering the IP manually above and select the correct brand.</div>';
+  }
+
+  btn.classList.remove('scanning');
+  btn.textContent = 'Scan Network for TVs';
+  if (!scanAbort) status.textContent = found.length > 0 ? `Found ${found.length} device(s). Tap one to select.` : 'Scan complete - no devices found';
+}
+
+// ---- Settings UI ----
 function openSettings() {
   document.getElementById('tv-ip-input').value = tvIp;
   document.getElementById('tv-type-select').value = tvType;
@@ -239,17 +381,20 @@ function saveTvSettings() {
   localStorage.setItem('alfi_tv_type', tvType);
   closeSettings();
 }
-async function testTvPower() {
-  const btn = event.target;
-  btn.textContent = 'Sending...';
+function testTvPower() {
+  const btn = event.target; btn.textContent='Sending...';
   tvSendKey('KEY_POWER');
-  setTimeout(() => { btn.textContent = 'Sent!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Test Power Off'; btn.classList.remove('ok'); }, 1500); }, 500);
+  setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Power';btn.classList.remove('ok');},1500);},500);
 }
-async function testTvVolume() {
-  const btn = event.target;
-  btn.textContent = 'Sending...';
+function testTvVolume() {
+  const btn = event.target; btn.textContent='Sending...';
   tvSendKey('KEY_VOLUP');
-  setTimeout(() => { btn.textContent = 'Sent!'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Test Volume'; btn.classList.remove('ok'); }, 1500); }, 500);
+  setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Vol';btn.classList.remove('ok');},1500);},500);
+}
+function testTvHome() {
+  const btn = event.target; btn.textContent='Sending...';
+  tvSendKey('KEY_HOME');
+  setTimeout(()=>{btn.textContent='Sent!';btn.classList.add('ok');setTimeout(()=>{btn.textContent='Test Home';btn.classList.remove('ok');},1500);},500);
 }
 
 async function loadHistory() {
