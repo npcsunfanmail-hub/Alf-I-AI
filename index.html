@@ -309,21 +309,29 @@ function findVoice() {
 function wakeUpSpeech() {
   if (!window.speechSynthesis) return;
   try {
+    window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance('');
     u.volume = 0;
     window.speechSynthesis.speak(u);
-    window.speechSynthesis.cancel();
   } catch (e) {}
 }
-document.getElementById('input-row').addEventListener('pointerdown', () => wakeUpSpeech());
+function keepSpeechAlive() {
+  if (!window.speechSynthesis || isSpeaking) return;
+  try { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } catch (e) {}
+}
+document.getElementById('input').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('input').addEventListener('keydown', () => wakeUpSpeech());
 document.getElementById('send-btn').addEventListener('pointerdown', () => wakeUpSpeech());
 document.getElementById('voice-btn').addEventListener('pointerdown', () => wakeUpSpeech());
 document.getElementById('tts-toggle').addEventListener('pointerdown', () => wakeUpSpeech());
 document.getElementById('reset-btn').addEventListener('pointerdown', () => wakeUpSpeech());
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && window.speechSynthesis) window.speechSynthesis.cancel();
+});
+setInterval(keepSpeechAlive, 10000);
 function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  wakeUpSpeech();
   const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
   let idx = 0;
   let voiceInfo = null;
