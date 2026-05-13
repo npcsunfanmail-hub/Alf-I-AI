@@ -315,9 +315,6 @@ function wakeUpSpeech() {
     window.speechSynthesis.cancel();
   } catch (e) {}
 }
-document.addEventListener('click', () => wakeUpSpeech());
-document.addEventListener('keydown', () => wakeUpSpeech());
-
 function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
