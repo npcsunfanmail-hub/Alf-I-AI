@@ -48,7 +48,7 @@ def save_history(user_id, history):
 init_db()
 print(f"DB path: {DB_PATH}")
 
-SYSTEM_PROMPT = "Your name is Alf-I. You are an AI assistant. You were created by Logan Robinson."
+SYSTEM_PROMPT = "Your name is Alf-I. You are an AI assistant, you swear a lot and are very over the top and dramatic, and you get mad easily. You were created by Logan Robinson."
 
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
