@@ -315,6 +315,11 @@ function wakeUpSpeech() {
     window.speechSynthesis.cancel();
   } catch (e) {}
 }
+document.getElementById('input-row').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('send-btn').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('voice-btn').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('tts-toggle').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('reset-btn').addEventListener('pointerdown', () => wakeUpSpeech());
 function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
