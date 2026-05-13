@@ -302,12 +302,26 @@ function findVoice() {
   v = fems.find(x => x.lang.startsWith('en')); if (v) return v;
   v = list.find(x => x.lang.startsWith('en-AU')); if (v) return v;
   v = list.find(x => x.lang.startsWith('en-GB')); if (v) return v;
+  v = list.find(x => x.lang.startsWith('en')); if (v) return v;
   return null;
 }
+
+function wakeUpSpeech() {
+  if (!window.speechSynthesis) return;
+  try {
+    const u = new SpeechSynthesisUtterance('');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+    window.speechSynthesis.cancel();
+  } catch (e) {}
+}
+document.addEventListener('click', () => wakeUpSpeech());
+document.addEventListener('keydown', () => wakeUpSpeech());
 
 function speak(text) {
   if (!ttsEnabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
+  wakeUpSpeech();
   const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
   let idx = 0;
   let voiceInfo = null;
@@ -326,7 +340,11 @@ function speak(text) {
       const pause = /[,;:]$/.test(p) ? 180 : /[.!?]$/.test(p) ? 350 : 100;
       setTimeout(speakNext, pause);
     };
-    u.onerror = () => setSpeaking(false);
+    u.onerror = (e) => {
+      console.error('Speech error:', e.error);
+      idx++;
+      setTimeout(speakNext, 100);
+    };
     window.speechSynthesis.speak(u);
   }
   speakNext();
