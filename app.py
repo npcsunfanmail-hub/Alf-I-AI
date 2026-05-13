@@ -7,8 +7,6 @@ from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from openai import OpenAI
 
-import tv_control
-
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(__file__)
@@ -56,58 +54,10 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-4o-mini")
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "browse_web",
-            "description": "Fetch and read the content of a webpage. Returns the page text.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "The full URL to visit (must include https://)",
-                    }
-                },
-                "required": ["url"],
-            },
-        },
-    },
-] + tv_control.TV_TOOLS
-
-
-def browse_web(url: str) -> str:
-    import requests
-    from bs4 import BeautifulSoup
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"}
-        resp = requests.get(url, headers=headers, timeout=15)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for tag in soup(["script", "style", "nav", "footer", "header"]):
-            tag.decompose()
-        text = soup.get_text(separator="\n", strip=True)
-        lines = [l for l in text.splitlines() if l.strip()]
-        content = "\n".join(lines[:200])
-        return f"--- Page: {url} ---\n{content}\n--- End ---"
-    except Exception as e:
-        return f"Error browsing {url}: {e}"
-
-
-TOOL_DISPATCH = {
-    "browse_web": lambda **kw: browse_web(**kw),
-    "discover_tvs": lambda **kw: json.dumps(tv_control.discover_tvs(**kw)),
-    "pair_tv": lambda **kw: json.dumps(tv_control.pair_tv(**kw)),
-    "send_remote_command": lambda **kw: json.dumps(tv_control.send_remote_command(**kw)),
-    "get_paired_tvs": lambda **kw: json.dumps(tv_control.get_paired_tvs(**kw)),
-    "disconnect_tv": lambda **kw: json.dumps(tv_control.disconnect(**kw)),
-}
-
 
 def call_llm(messages):
     client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL or None)
-    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages, tools=TOOLS, tool_choice="auto")
+    resp = client.chat.completions.create(model=LLM_MODEL, messages=messages)
     return resp.choices[0].message
 
 
@@ -133,53 +83,6 @@ def sync():
     return jsonify({"history": hist or []})
 
 
-@app.route("/api/tv/discover", methods=["POST"])
-def api_tv_discover():
-    try:
-        tvs = tv_control.discover_tvs()
-        return jsonify({"tvs": tvs})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/tv/pair", methods=["POST"])
-def api_tv_pair():
-    data = request.get_json()
-    ip = data.get("ip")
-    tv_type = data.get("tv_type")
-    code = data.get("pairing_code")
-    if not ip or not tv_type or not code:
-        return jsonify({"error": "ip, tv_type, and pairing_code required"}), 400
-    result = tv_control.pair_tv(ip, tv_type, code)
-    return jsonify(result)
-
-
-@app.route("/api/tv/command", methods=["POST"])
-def api_tv_command():
-    data = request.get_json()
-    ip = data.get("ip")
-    command = data.get("command")
-    if not ip or not command:
-        return jsonify({"error": "ip and command required"}), 400
-    result = tv_control.send_remote_command(ip, command)
-    return jsonify(result)
-
-
-@app.route("/api/tv/status", methods=["GET"])
-def api_tv_status():
-    return jsonify({"paired": tv_control.get_paired_tvs()})
-
-
-@app.route("/api/tv/disconnect", methods=["POST"])
-def api_tv_disconnect():
-    data = request.get_json()
-    ip = data.get("ip")
-    if not ip:
-        return jsonify({"error": "ip required"}), 400
-    tv_control.disconnect(ip)
-    return jsonify({"ok": True})
-
-
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json()
@@ -194,43 +97,7 @@ def chat():
 
     try:
         msg = call_llm(msgs)
-        content = msg.content or ""
-        tool_calls = getattr(msg, "tool_calls", None) or []
-
-        if tool_calls:
-            msgs.append({"role": "assistant", "content": content})
-            for tc in tool_calls:
-                name = tc.function.name
-                args = json.loads(tc.function.arguments)
-                fn = TOOL_DISPATCH.get(name)
-                result = fn(**args) if fn else f"Unknown tool: {name}"
-                msgs.append({"role": "tool", "tool_call_id": tc.id, "content": result})
-            msg2 = call_llm(msgs)
-            content = msg2.content or ""
-
-        return jsonify({"content": content.strip()})
+        return jsonify({"content": (msg.content or "").strip()})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": repr(e)}), 500
-
-
-@app.route("/api/tv/network-check", methods=["GET"])
-def api_network_check():
-    import socket
-    try:
-        hostname = socket.gethostname()
-        local_ip = socket.gethostbyname(hostname)
-        is_private = local_ip.startswith(("192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."))
-        return jsonify({
-            "hostname": hostname,
-            "local_ip": local_ip,
-            "on_private_network": is_private,
-            "message": "Local network detected" if is_private else "Not on a private LAN - TV discovery requires running this app on your local machine, not on Vercel."
-        })
-    except Exception as e:
-        return jsonify({"error": str(e), "on_private_network": False})
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
