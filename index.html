@@ -5,390 +5,453 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Miss Minutes · TVA</title>
+<title>Alf-I</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #ff6a00; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; padding: min(2vw, 10px); }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a2e; display: flex; justify-content: center; align-items: center; -webkit-text-size-adjust: 100%; }
+  #app { width: 100%; max-width: 500px; height: 100dvh; background: linear-gradient(180deg, #1a1a4e 0%, #0d0d3a 40%, #0a0a2e 100%); display: flex; flex-direction: column; position: relative; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  #face-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; min-height: 0; }
+  #face { width: min(82vw, 380px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(4.5vw, 20px); animation: faceIdle 5s ease-in-out infinite; transition: filter 0.6s; }
+  @keyframes faceIdle { 0%, 100% { transform: translateY(0px) rotate(0deg); } 25% { transform: translateY(-6px) rotate(1.2deg); } 50% { transform: translateY(-10px) rotate(0deg); } 75% { transform: translateY(-6px) rotate(-1.2deg); } }
+  #face.thinking { animation: faceThink 4s ease-in-out infinite; }
+  @keyframes faceThink { 0%, 100% { transform: translateY(-3px) rotate(0.5deg); } 50% { transform: translateY(-8px) rotate(-0.5deg); } }
 
-  #phone { width: 100%; max-width: min(94vw, 420px); height: 100dvh; max-height: min(98dvh, 900px); border-radius: min(8vw, 40px); overflow: hidden; position: relative; background: #ff6a00; box-shadow: 0 0 min(8vw, 40px) rgba(255,120,0,0.5), 0 0 min(2vw, 10px) rgba(0,0,0,0.3); }
+  #brow-group { display: flex; gap: min(16vw, 70px); align-items: center; justify-content: center; width: 100%; }
+  .brow { width: min(22vw, 90px); height: min(1.6vw, 7px); background: white; border-radius: min(0.8vw, 3px); transition: transform 0.5s ease; box-shadow: 0 0 16px rgba(255,255,255,0.1); }
+  .brow.raise { transform: translateY(-6px); }
 
-  #app { width: 100%; height: 100%; position: relative; display: flex; flex-direction: column; background: linear-gradient(180deg, #ff8c20 0%, #ff6a00 30%, #e85c00 100%); overflow: hidden; }
+  #eye-group { display: flex; gap: min(16vw, 70px); align-items: center; justify-content: center; width: 100%; }
+  .eye { width: min(16vw, 68px); height: min(26vw, 110px); background: white; border-radius: min(1.4vw, 6px); position: relative; display: flex; align-items: center; justify-content: center; transition: height 0.1s ease; box-shadow: 0 0 40px rgba(255,255,255,0.1); }
+  .eye.blink { height: min(0.8vw, 3px); }
+  .eye.widen { height: min(30vw, 120px); transition: height 0.2s ease; }
+  .thinking .eye.blink { height: min(0.8vw, 3px); transition: height 0.25s ease; }
+  .pupil { width: min(7vw, 30px); height: min(10vw, 42px); background: linear-gradient(135deg, #1a1a4e, #0a0a2e); border-radius: min(0.8vw, 3px); position: relative; transition: transform 0.5s ease; animation: pupilDrift 12s ease-in-out infinite; }
+  .pupil::after { content: ''; position: absolute; width: min(2.4vw, 10px); height: min(2.4vw, 10px); background: rgba(255,255,255,0.35); border-radius: 50%; top: min(1.2vw, 5px); right: min(1.2vw, 5px); }
+  @keyframes pupilDrift { 0%, 100% { transform: translateX(0px) translateY(0px); } 25% { transform: translateX(-4px) translateY(0px); } 50% { transform: translateX(0px) translateY(-3px); } 75% { transform: translateX(4px) translateY(0px); } }
+  .thinking .pupil { animation: pupilThink 3s ease-in-out infinite; }
+  @keyframes pupilThink { 0%, 100% { transform: translateX(0px) translateY(-4px); } 50% { transform: translateX(0px) translateY(-8px); } }
 
-  #glow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, rgba(255,220,100,0.5) 0%, rgba(255,160,40,0.2) 40%, transparent 75%); pointer-events: none; z-index: 0; animation: glowPulse 2.5s ease-in-out infinite; }
-  @keyframes glowPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+  #mouth-area { display: flex; align-items: center; justify-content: center; }
+  #mouth { width: min(24vw, 100px); height: min(2vw, 8px); background: white; border-radius: min(0.8vw, 3px); transition: width 0.15s ease, background 0.1s, border 0.1s; box-shadow: 0 0 24px rgba(255,255,255,0.08); }
+  #mouth.open { width: min(28vw, 118px); background: #0a0a2e; border: min(0.3vw, 1.5px) solid rgba(255,255,255,0.7); border-radius: min(1.2vw, 5px); }
 
-  #scanlines { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent min(0.3vw, 1.5px), rgba(255,255,200,0.06) min(0.3vw, 1.5px), rgba(255,255,200,0.06) min(0.6vw, 3px)); pointer-events: none; z-index: 1; animation: scanMove 6s linear infinite; }
-  @keyframes scanMove { 0% { transform: translateY(0); } 100% { transform: translateY(min(0.6vw, 3px)); } }
-
-  .particle { position: absolute; width: min(0.4vw, 2.5px); height: min(0.4vw, 2.5px); background: rgba(255,255,200,0.8); border-radius: 50%; pointer-events: none; z-index: 0; animation: float linear infinite; box-shadow: 0 0 min(0.8vw, 4px) rgba(255,255,200,0.5); }
-  @keyframes float { 0% { transform: translateY(100%) translateX(0) scale(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 0.6; } 100% { transform: translateY(-100vh) translateX(min(4vw, 20px)) scale(1); opacity: 0; } }
-
-  #face-root { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; z-index: 2; padding: min(2vw, 10px); animation: breathe 3.5s ease-in-out infinite; }
-  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.006); } }
-  #face-inner { width: 100%; max-width: min(88vw, 380px); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
-
-  /* ─── Clock-face Markings ─── */
-  .hour-mark { position: absolute; background: #111; border-radius: min(0.8vw, 4px); pointer-events: none; z-index: 5; }
-  .hour-mark.top { top: min(4.5%, 14px); left: 50%; transform: translateX(-50%); width: min(1.2vw, 5px); height: min(4.5vw, 20px); }
-  .hour-mark.bot { bottom: min(4.5%, 14px); left: 50%; transform: translateX(-50%); width: min(1.2vw, 5px); height: min(4.5vw, 20px); }
-  .hour-mark.lft { left: min(4.5%, 14px); top: 50%; transform: translateY(-50%); width: min(4.5vw, 20px); height: min(1.2vw, 5px); }
-  .hour-mark.rgt { right: min(4.5%, 14px); top: 50%; transform: translateY(-50%); width: min(4.5vw, 20px); height: min(1.2vw, 5px); }
-  .minor-tick { position: absolute; background: #111; width: min(0.3vw, 1.5px); height: min(2vw, 9px); border-radius: min(0.15vw, 0.8px); pointer-events: none; z-index: 5; }
-
-  #face-body { width: min(68%, 290px); aspect-ratio: 1 / 1; border-radius: 50%; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 50%, #ffc040 0%, #ff8c20 55%, #e87010 100%); border: min(0.4vw, 2.5px) solid #111; gap: min(0.5vw, 2px); }
-
-  /* ─── Eyes ─── */
-  #eyes { display: flex; gap: min(8vw, 34px); align-items: center; justify-content: center; width: 78%; position: relative; z-index: 3; }
-  .eye-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
-  .eye-wrap:first-child { transform: rotate(5deg); }
-  .eye-wrap:last-child { transform: rotate(-5deg); }
-
-  .eye { width: min(16vw, 68px); height: min(24vw, 100px); background: #f5f5f0; border: min(0.35vw, 2px) solid #111; border-radius: 50% 50% 40% 40% / 50% 50% 25% 25%; position: relative; display: flex; align-items: center; justify-content: center; }
-
-  /* Eyelid */
-  .eyelid { position: absolute; top: 0; left: 0; right: 0; height: 0; background: #ffc040; border-radius: 0 0 40% 40%; transition: height 0.02s ease; z-index: 5; pointer-events: none; }
-  .eye.closed .eyelid { height: 100%; border-radius: 0 0 50% 50%; }
-
-  /* Pupils - black oval, inward+upward */
-  .pupil { width: min(5vw, 22px); height: min(8.5vw, 36px); background: #111; border-radius: 50%; position: relative; z-index: 2; }
-  .eye-wrap:first-child .pupil { transform: translate(20%, -8%); }
-  .eye-wrap:last-child .pupil { transform: translate(-20%, -8%); }
-  .pupil::after { content: ''; position: absolute; top: 5%; left: 2%; width: 44%; height: 38%; background: #fff; border-radius: 30% 10% 40% 10% / 50% 20% 60% 20%; pointer-events: none; }
-
-  /* Eyelashes - bold retro triangular spikes attached to top of eye */
-  .lash { position: absolute; background: #111; border-radius: min(0.5vw, 2.5px) min(0.5vw, 2.5px) min(0.08vw, 0.4px) min(0.08vw, 0.4px); z-index: 6; pointer-events: none; transform-origin: bottom center; }
-  .lash:nth-child(1) { left: 5%; bottom: calc(100% - 0.5px); width: min(0.7vw, 3px); height: min(3.5vw, 15px); transform: rotate(-38deg); }
-  .lash:nth-child(2) { left: 35%; bottom: calc(100% - 0.5px); width: min(0.9vw, 4px); height: min(5.5vw, 24px); transform: rotate(-14deg); }
-  .lash:nth-child(3) { right: 35%; bottom: calc(100% - 0.5px); width: min(0.9vw, 4px); height: min(5.5vw, 24px); transform: rotate(14deg); }
-  .lash:nth-child(4) { right: 5%; bottom: calc(100% - 0.5px); width: min(0.7vw, 3px); height: min(3.5vw, 15px); transform: rotate(38deg); }
-
-  /* ─── Nose ─── */
-  #nose { width: min(2.5vw, 11px); height: min(2.5vw, 11px); background: #111; border-radius: 50%; position: absolute; z-index: 4; left: 50%; transform: translateX(-50%); bottom: 43%; }
-
-  /* ─── Cheeks ─── */
-  #cheeks { position: absolute; bottom: 26%; left: 0; right: 0; display: flex; justify-content: space-around; padding: 0 min(1%, 5px); pointer-events: none; z-index: 2; }
-  .cheek { width: min(9vw, 40px); height: min(5vw, 22px); background: radial-gradient(ellipse, rgba(255,150,140,0.4) 0%, transparent 70%); border-radius: 50%; }
-
-  /* ─── Mouth ─── */
-  #mouth-area { position: relative; z-index: 4; display: flex; align-items: center; justify-content: center; margin-top: min(1vw, 5px); }
-  #mouth { position: relative; width: min(16vw, 68px); height: min(1.8vw, 8px); border-bottom: min(0.3vw, 1.5px) solid #111; border-radius: 0 0 50% 30% / 0 0 100% 30%; transform: rotate(-3deg); transition: all 0.12s; }
-  #mouth.open { border-bottom: none; width: min(16vw, 68px); height: min(3.5vw, 15px); background: rgba(20,10,5,0.55); border-radius: min(0.4vw, 2px); transform: none; }
-
-  /* ─── Collar ─── */
-  #collar { position: absolute; bottom: min(5%, 16px); left: 50%; transform: translateX(-50%); width: 44%; z-index: 6; display: flex; flex-direction: column; align-items: center; }
-  #collar-band { width: 100%; height: min(1.2vw, 5px); background: linear-gradient(180deg, rgba(80,50,30,0.1), rgba(50,30,15,0.06)); border-radius: 0 0 min(0.3vw, 1.5px) min(0.3vw, 1.5px); }
-  #collar-tab { width: 30%; height: min(0.8vw, 3.5px); background: linear-gradient(180deg, rgba(201,168,76,0.12), rgba(160,136,48,0.06)); border-radius: min(0.2vw, 1px); margin-top: min(-0.2vw, -1px); }
-
-  #tva-label { position: absolute; bottom: min(0.8%, 2px); left: 50%; transform: translateX(-50%); color: rgba(255,200,100,0.15); font-size: min(1.6vw, 7px); font-weight: 600; letter-spacing: min(0.8vw, 4px); text-transform: uppercase; font-family: 'Times New Roman', Georgia, serif; pointer-events: none; white-space: nowrap; }
-
-  /* ─── Expression Keyframes ─── */
-  @keyframes speakB { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-  .speaking #face-inner { animation: speakB 0.6s ease-in-out infinite; }
-  @keyframes happyB { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-8px) rotate(2deg); } 50% { transform: translateY(-4px) rotate(-1deg); } 75% { transform: translateY(-8px) rotate(1deg); } }
-  .happy #face-inner { animation: happyB 0.6s ease-in-out; }
-  @keyframes excitedB { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-10px) rotate(3deg); } 50% { transform: translateY(-4px); } 75% { transform: translateY(-10px) rotate(-2deg); } }
-  .excited #face-inner { animation: excitedB 0.3s ease-in-out infinite; }
-  @keyframes confusedT { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-2px) rotate(-5deg); } }
-  .confused #face-inner { animation: confusedT 1.5s ease-in-out infinite; }
-  @keyframes sadS { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px) rotate(-2deg); } }
-  .sad #face-inner { animation: sadS 2s ease-in-out infinite; }
-
-  /* Old cartoon squash blink */
-  @keyframes squashBlink {
-    0% { transform: scaleY(1); }
-    8% { transform: scaleY(0.05); }
-    20% { transform: scaleY(1); }
-  }
-  .eye.blinking { animation: squashBlink 0.18s ease; }
-
-  #bottom { flex-shrink: 0; padding: min(1.2vw, 6px) min(2.5vw, 12px) max(env(safe-area-inset-bottom, 6px), min(2.5vw, 12px)); background: rgba(255,200,80,0.1); border-top: 1px solid rgba(255,255,200,0.1); position: relative; z-index: 10; backdrop-filter: blur(min(1vw, 5px)); }
-  #input-row { display: flex; gap: min(0.6vw, 3px); align-items: center; background: rgba(255,255,255,0.08); border-radius: min(4vw, 20px); padding: min(0.3vw, 1.5px) min(0.3vw, 1.5px) min(0.3vw, 1.5px) min(2.5vw, 12px); border: 1px solid rgba(255,255,200,0.1); }
-  #input { flex: 1; min-width: 0; background: none; border: none; color: rgba(255,240,220,0.9); font-size: min(3.2vw, 15px); outline: none; padding: min(1.4vw, 7px) 0; }
-  #input::placeholder { color: rgba(255,240,220,0.3); }
-  .btn { background: none; border: none; cursor: pointer; width: min(8vw, 36px); height: min(8vw, 36px); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s; }
-  .btn svg { width: min(4.5vw, 20px); height: min(4.5vw, 20px); fill: rgba(255,240,220,0.35); }
-  .btn:active { background: rgba(255,255,200,0.08); }
-  .btn:active svg { fill: rgba(255,255,220,0.5); }
-  #voice-btn.listening { background: rgba(200,100,60,0.2); animation: pulse 1s infinite; }
-  #voice-btn.listening svg { fill: rgba(255,255,220,0.6); }
-  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-  #tts-toggle.active svg { fill: rgba(255,255,220,0.5); }
-  #send-btn svg { fill: rgba(255,255,220,0.4); }
+  #name-label { color: rgba(255,255,255,0.12); font-size: min(2.8vw, 13px); font-weight: 400; letter-spacing: 4px; text-transform: uppercase; margin-top: min(4vw, 18px); pointer-events: none; }
+  #status-text { color: rgba(255,255,255,0.4); font-size: min(3.2vw, 14px); text-align: center; padding: min(2vw, 10px); letter-spacing: 1px; }
+  #bottom-area { flex-shrink: 0; padding: min(3vw, 14px) min(4vw, 20px) max(env(safe-area-inset-bottom, 8px), min(4vw, 20px)); background: rgba(255,255,255,0.03); border-top: 1px solid rgba(255,255,255,0.06); }
+  #input-row { display: flex; gap: 6px; align-items: center; background: rgba(255,255,255,0.08); border-radius: 24px; padding: 4px 4px 4px 14px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #input { flex: 1; min-width: 0; background: none; border: none; color: white; font-size: 16px; outline: none; padding: 9px 0; }
+  #input::placeholder { color: rgba(255,255,255,0.3); }
+  .icon-btn { background: none; border: none; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s; }
+  .icon-btn svg { width: 22px; height: 22px; fill: rgba(255,255,255,0.6); }
+  .icon-btn:active { background: rgba(255,255,255,0.15); }
+  .icon-btn:active svg { fill: white; }
+  #voice-btn.listening { background: #ea4335; animation: pulse 1s infinite; }
+  #voice-btn.listening svg { fill: white; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  #tts-toggle.active svg { fill: #4fc3f7; }
+  #send-btn svg { fill: #4fc3f7; }
 </style>
 </head>
 <body>
-<div id="phone">
 <div id="app">
-
-  <div id="glow"></div>
-  <div id="scanlines"></div>
-
-  <div id="face-root">
-    <div id="face-inner">
-
-      <div id="face-body">
-
-        <div class="hour-mark top"></div>
-        <div class="hour-mark bot"></div>
-        <div class="hour-mark lft"></div>
-        <div class="hour-mark rgt"></div>
-
-        <div id="eyes">
-          <div class="eye-wrap">
-            <div class="eye" id="left-eye">
-              <div class="lash"></div><div class="lash"></div><div class="lash"></div><div class="lash"></div>
-              <div class="eyelid"></div>
-              <div class="pupil"></div>
-            </div>
-          </div>
-          <div class="eye-wrap">
-            <div class="eye" id="right-eye">
-              <div class="lash"></div><div class="lash"></div><div class="lash"></div><div class="lash"></div>
-              <div class="eyelid"></div>
-              <div class="pupil"></div>
-            </div>
-          </div>
+  <div id="face-container">
+    <div id="face">
+      <div id="brow-group">
+        <div class="brow" id="left-brow"></div>
+        <div class="brow" id="right-brow"></div>
+      </div>
+      <div id="eye-group">
+        <div class="eye" id="left-eye">
+          <div class="pupil"></div>
         </div>
-
-        <div id="nose"></div>
-
-        <div id="cheeks">
-          <div class="cheek"></div>
-          <div class="cheek"></div>
-        </div>
-
-        <div id="mouth-area">
-          <div id="mouth"></div>
+        <div class="eye" id="right-eye">
+          <div class="pupil"></div>
         </div>
       </div>
-
-      <div id="collar">
-        <div id="collar-band"></div>
-        <div id="collar-tab"></div>
+      <div id="mouth-area">
+        <div id="mouth"></div>
       </div>
-
+      <div id="name-label">ALF-I</div>
     </div>
-    <div id="tva-label">TIME VARIANCE AUTHORITY</div>
+    <div id="status-text">READY</div>
   </div>
-
-  <div id="bottom">
+  <div id="bottom-area">
     <div id="input-row">
-      <input id="input" type="text" placeholder="Howdy! Ask me anything..." autofocus>
-      <button class="btn" id="reset-btn" onclick="resetConversation()" title="New"><svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button>
-      <button class="btn" id="voice-btn" onclick="toggleVoice()" title="Voice"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button>
-      <button class="btn active" id="tts-toggle" onclick="toggleTTS()" title="Voice out"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button>
-      <button class="btn" id="send-btn" onclick="sendMessage()" title="Send"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+      <input id="input" type="text" placeholder="Type a message..." autofocus>
+      <button class="icon-btn" id="reset-btn" onclick="resetConversation()" title="New conversation">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      </button>
+      <button class="icon-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      </button>
+      <button class="icon-btn active" id="tts-toggle" onclick="toggleTTS()" title="Voice output">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      </button>
+      <button class="icon-btn" id="send-btn" onclick="sendMessage()" title="Send">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
     </div>
   </div>
-</div>
 </div>
 
 <script>
-  const input = document.getElementById('input');
-  const voiceBtn = document.getElementById('voice-btn');
-  const ttsBtn = document.getElementById('tts-toggle');
-  const mouth = document.getElementById('mouth');
-  const leftEye = document.getElementById('left-eye');
-  const rightEye = document.getElementById('right-eye');
-  const faceRoot = document.getElementById('face-root');
+const input = document.getElementById('input');
+const statusEl = document.getElementById('status-text');
+const voiceBtn = document.getElementById('voice-btn');
+const ttsBtn = document.getElementById('tts-toggle');
+const mouth = document.getElementById('mouth');
+const leftEye = document.getElementById('left-eye');
+const rightEye = document.getElementById('right-eye');
+const leftBrow = document.getElementById('left-brow');
+const rightBrow = document.getElementById('right-brow');
 
-  let userId = localStorage.getItem('mm_user_id') || crypto.randomUUID();
-  localStorage.setItem('mm_user_id', userId);
-  let history = [];
-  let currentExpression = 'neutral';
+let userId = localStorage.getItem('alfi_user_id') || crypto.randomUUID();
+localStorage.setItem('alfi_user_id', userId);
+let history = [];
 
-  (function() {
-    const a = document.getElementById('app');
-    for (let i = 0; i < 25; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      p.style.left = Math.random() * 100 + '%';
-      p.style.animationDuration = (8 + Math.random() * 14) + 's';
-      p.style.animationDelay = (Math.random() * 12) + 's';
-      p.style.width = p.style.height = (0.15 + Math.random() * 0.3) + 'vw';
-      a.appendChild(p);
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/sync?user_id=' + encodeURIComponent(userId));
+    const data = await res.json();
+    if (data.history && data.history.length) {
+      history = data.history;
+      localStorage.setItem('alfi_history', JSON.stringify(history));
+      console.log('Loaded', history.length, 'messages from server for', userId.slice(0, 8) + '...');
+    } else {
+      const saved = localStorage.getItem('alfi_history');
+      if (saved) history = JSON.parse(saved);
+      console.log('Server empty, loaded', history.length, 'from localStorage');
     }
-    const face = document.getElementById('face-body');
-    const minor = [30, 60, 120, 150, 210, 240, 300, 330];
-    for (const deg of minor) {
-      const a = deg * Math.PI / 180;
-      const t = document.createElement('div');
-      t.className = 'minor-tick';
-      t.style.left = (50 + 47.5 * Math.sin(a)) + '%';
-      t.style.top = (50 - 47.5 * Math.cos(a)) + '%';
-      t.style.transform = 'translate(-50%, -50%) rotate(' + deg + 'deg)';
-      face.appendChild(t);
-    }
-  })();
-
-  async function loadHistory() {
-    try {
-      const res = await fetch('/api/sync?user_id=' + encodeURIComponent(userId));
-      const d = await res.json();
-      if (d.history && d.history.length) { history = d.history; localStorage.setItem('mm_history', JSON.stringify(history)); }
-      else { const s = localStorage.getItem('mm_history'); if (s) history = JSON.parse(s); }
-    } catch (e) { const s = localStorage.getItem('mm_history'); if (s) history = JSON.parse(s); }
+  } catch (e) {
+    const saved = localStorage.getItem('alfi_history');
+    if (saved) history = JSON.parse(saved);
+    console.log('Load failed, loaded', history.length, 'from localStorage');
   }
-  loadHistory();
+}
+loadHistory();
+let ttsEnabled = true;
+let isListening = false;
+let isSpeaking = false;
+let isThinking = false;
+let recognition = null;
+let blinkTimer = null;
+let browTimer = null;
+let mouthAnimFrame = null;
+let mouthStart = 0;
 
-  let tts = true, listening = false, speaking = false, thinking = false, recog = null;
-  let blinkT, mouthAF, mouthS = 0, exprT;
+const face = document.getElementById('face');
+const pupils = document.querySelectorAll('.pupil');
 
-  function setExpr(expr, dur) {
-    if (exprT) { clearTimeout(exprT); exprT = null; }
-    faceRoot.classList.remove('neutral', 'happy', 'sad', 'confused', 'excited', 'thinking', 'speaking');
-    if (speaking) { faceRoot.classList.add('speaking'); return; }
-    if (thinking) { faceRoot.classList.add('thinking'); return; }
-    faceRoot.classList.add(expr);
-    currentExpression = expr;
-    if (dur > 0) exprT = setTimeout(() => { if (!speaking && !thinking) { faceRoot.classList.remove('happy', 'sad', 'confused', 'excited'); faceRoot.classList.add('neutral'); currentExpression = 'neutral'; } }, dur);
+function blinkEyes() {
+  const dur = isThinking ? 250 : 100;
+  leftEye.classList.add('blink');
+  rightEye.classList.add('blink');
+  setTimeout(() => {
+    leftEye.classList.remove('blink');
+    rightEye.classList.remove('blink');
+  }, dur);
+  const next = isThinking ? 4000 + Math.random() * 3000 : 2000 + Math.random() * 4000;
+  blinkTimer = setTimeout(blinkEyes, next);
+}
+blinkEyes();
+
+function animateBrows() {
+  if (isThinking || isSpeaking) { browTimer = setTimeout(animateBrows, 1000); return; }
+  const both = Math.random() > 0.3;
+  if (both) { leftBrow.classList.add('raise'); rightBrow.classList.add('raise'); }
+  else if (Math.random() > 0.5) leftBrow.classList.add('raise');
+  else rightBrow.classList.add('raise');
+  setTimeout(() => {
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+  }, 500);
+  const next = 2000 + Math.random() * 4000;
+  browTimer = setTimeout(animateBrows, next);
+}
+animateBrows();
+
+function startThinking() {
+  isThinking = true;
+  face.classList.add('thinking');
+  leftBrow.classList.add('raise');
+  rightBrow.classList.add('raise');
+}
+
+function stopThinking() {
+  isThinking = false;
+  face.classList.remove('thinking');
+  leftBrow.classList.remove('raise');
+  rightBrow.classList.remove('raise');
+}
+
+function happyReaction() {
+  leftEye.classList.add('widen');
+  rightEye.classList.add('widen');
+  leftBrow.classList.add('raise');
+  rightBrow.classList.add('raise');
+  setTimeout(() => {
+    leftEye.classList.remove('widen');
+    rightEye.classList.remove('widen');
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+  }, 600);
+}
+
+function startMouthAnimation() {
+  mouth.classList.add('open');
+  mouthStart = performance.now();
+
+  function step(time) {
+    if (!isSpeaking) return;
+    const t = (time - mouthStart) / 1000;
+
+    const fSyllable = 4.5 + 1.2 * Math.sin(t * 0.4);
+    const fFast = 7 + 2 * Math.sin(t * 0.6 + 0.8);
+    const fPhrase = 1.4 + 0.6 * Math.sin(t * 0.25 + 1.5);
+
+    const vowels = Math.abs(Math.sin(t * fSyllable * Math.PI));
+    const consonants = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * fFast * Math.PI * 2));
+    const phrasing = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * fPhrase * Math.PI * 2));
+
+    let raw = vowels * 0.5 + consonants * 0.2 + phrasing * 0.3;
+    raw += Math.sin(t * 14.7 * Math.PI) * 0.04;
+    raw += Math.sin(t * 21.3 * Math.PI + 0.6) * 0.03;
+    raw += Math.sin(t * 33.1 * Math.PI + 1.8) * 0.02;
+
+    const openness = Math.max(0.08, Math.min(1, raw));
+    const minH = 5, maxH = 26;
+    const h = minH + openness * (maxH - minH);
+
+    const r = 2 + openness * 4;
+    mouth.style.height = h.toFixed(1) + 'px';
+    mouth.style.borderRadius = r.toFixed(1) + 'px';
+    mouthAnimFrame = requestAnimationFrame(step);
   }
+  mouthAnimFrame = requestAnimationFrame(step);
+}
 
-  function analyzeTone(text) {
-    const t = text.toLowerCase();
-    const exc = /!/.test(text) && text.length < 150;
-    const hw = /\b(yay|great|awesome|love|amazing|fantastic|perfect|beautiful|fun|exciting|glad|happy|welcome|good|nice|adorable|cute|lovely)\b/i.test(t);
-    const sw = /\b(sorry|sad|unfortunately|apologize|regret|afraid|worried|difficult|hard|terrible|awful|apology)\b/i.test(t);
-    const cw = /\b(what|huh|interesting|peculiar|curious|strange|odd|hmm)\b/i.test(t) && /\?/.test(text);
-    const q = /\?/.test(text) && text.length < 200;
-    if ((exc && hw) || (hw && text.length < 200)) return 'happy';
-    if (cw || (q && !hw)) return 'confused';
-    if (sw) return 'sad';
-    return 'neutral';
+function stopMouthAnimation() {
+  isSpeaking = false;
+  if (mouthAnimFrame) { cancelAnimationFrame(mouthAnimFrame); mouthAnimFrame = null; }
+  mouth.classList.remove('open');
+  mouth.style.height = '';
+  mouth.style.borderRadius = '';
+}
+
+function setSpeaking(val) {
+  isSpeaking = val;
+  if (val) {
+    leftBrow.classList.add('raise');
+    rightBrow.classList.add('raise');
+    startMouthAnimation();
+  } else {
+    leftBrow.classList.remove('raise');
+    rightBrow.classList.remove('raise');
+    stopMouthAnimation();
   }
+}
 
-  function blink() {
-    if (thinking) { blinkT = setTimeout(blink, 3000 + Math.random() * 2000); return; }
-    leftEye.classList.add('closed'); leftEye.classList.add('blinking');
-    setTimeout(() => {
-      rightEye.classList.add('closed'); rightEye.classList.add('blinking');
-    }, 35);
-    setTimeout(() => {
-      leftEye.classList.remove('closed'); leftEye.classList.remove('blinking');
-      rightEye.classList.remove('closed'); rightEye.classList.remove('blinking');
-    }, 180);
-    blinkT = setTimeout(blink, 3000 + Math.random() * 4000);
-  }
-  blink();
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+  recognition.onresult = function(e) {
+    input.value = e.results[0][0].transcript;
+    sendMessage();
+  };
+  recognition.onend = function() { isListening = false; voiceBtn.classList.remove('listening'); };
+  recognition.onerror = function() { isListening = false; voiceBtn.classList.remove('listening'); setStatus('VOICE ERROR'); };
+}
 
-  function startThink() { thinking = true; setExpr('thinking'); leftEye.classList.remove('closed'); rightEye.classList.remove('closed'); }
-  function stopThink() { thinking = false; if (!speaking) setExpr('neutral'); }
+function toggleVoice() {
+  if (!recognition) { setStatus('NOT SUPPORTED'); return; }
+  if (isListening) { recognition.stop(); return; }
+  isListening = true;
+  voiceBtn.classList.add('listening');
+  recognition.start();
+}
 
-  function happyReact() { setExpr('happy', 1200); leftEye.classList.remove('closed'); rightEye.classList.remove('closed'); }
+function toggleTTS() {
+  ttsEnabled = !ttsEnabled;
+  ttsBtn.classList.toggle('active');
+}
 
-  function startMouth() {
-    mouth.classList.add('open'); mouthS = performance.now();
-    function step(t) {
-      if (!speaking) return;
-      const e = (t - mouthS) / 1000;
-      const o = Math.max(0.06, Math.min(1, Math.abs(Math.sin(e * 4.5 * Math.PI)) * 0.5 + 0.3 + Math.sin(e * 7.5 * Math.PI) * 0.1 + Math.sin(e * 15 * Math.PI) * 0.04));
-      mouth.style.height = (5 + o * 20).toFixed(1) + 'px';
-      mouth.style.borderRadius = (2 + o * 5).toFixed(1) + 'px';
-      mouthAF = requestAnimationFrame(step);
-    }
-    mouthAF = requestAnimationFrame(step);
-  }
-  function stopMouth() { speaking = false; if (mouthAF) { cancelAnimationFrame(mouthAF); mouthAF = null; } mouth.classList.remove('open'); mouth.style.height = ''; mouth.style.borderRadius = ''; }
-  function setSpeak(v) {
-    speaking = v;
-    if (v) { setExpr('speaking'); startMouth(); }
-    else { stopMouth(); if (!thinking) setExpr('neutral'); }
-  }
+let voicesCache = [];
 
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recog = new SR(); recog.continuous = false; recog.interimResults = false; recog.lang = 'en-US';
-    recog.onresult = function(e) { input.value = e.results[0][0].transcript; sendMessage(); };
-    recog.onend = function() { listening = false; voiceBtn.classList.remove('listening'); };
-    recog.onerror = function() { listening = false; voiceBtn.classList.remove('listening'); };
-  }
-  function toggleVoice() { if (!recog) return; if (listening) { recog.stop(); return; } listening = true; voiceBtn.classList.add('listening'); recog.start(); }
-  function toggleTTS() { tts = !tts; ttsBtn.classList.toggle('active'); }
+function loadVoices() {
+  voicesCache = window.speechSynthesis.getVoices();
+  console.log('Alf-I available voices:', voicesCache.map(v => v.name + ' [' + v.lang + ']').join(', '));
+}
+if (window.speechSynthesis) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
 
-  let vc = [];
-  function lv() { vc = window.speechSynthesis.getVoices(); }
-  if (window.speechSynthesis) { lv(); window.speechSynthesis.onvoiceschanged = lv; }
-  function findV() {
-    const list = window.speechSynthesis.getVoices().length ? window.speechSynthesis.getVoices() : vc;
-    if (!list.length) return null;
-    const so = list.filter(v => /southern|siri|carol|ashley|ava|emma|samantha/i.test(v.name) && v.lang.startsWith('en'));
-    if (so.length) return so[0];
-    const fu = list.filter(v => /female|zoe|vanessa|karen|fiona|catherine|serena|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|aria|jenny|susan|martha|nora|mila|sally|alice|lina/i.test(v.name) && v.lang.startsWith('en-US'));
-    if (fu.length) return fu[0];
-    const fe = list.filter(v => /female|zoe|vanessa|karen|fiona|catherine|serena|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|aria|jenny|susan|martha|nora|mila|sally|alice|lina/i.test(v.name) && v.lang.startsWith('en'));
-    if (fe.length) return fe[0];
-    const en = list.filter(v => v.lang.startsWith('en'));
-    return en.length ? en[0] : null;
-  }
+function findVoice() {
+  const vs = window.speechSynthesis.getVoices();
+  const list = vs.length ? vs : voicesCache;
+  if (!list.length) return null;
+  const isF = n => /female|zoe|vanessa|karen|natya|fiona|catherine|serena|tracy|moira|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|susan|veena|yuri|aria|jenny/i.test(n);
+  const fems = list.filter(v => isF(v.name));
+  let v;
+  v = fems.find(x => x.lang.startsWith('en-AU')); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en-GB')); if (v) return v;
+  v = fems.find(x => x.lang.startsWith('en')); if (v) return v;
+  v = list.find(x => x.lang.startsWith('en-AU')); if (v) return v;
+  v = list.find(x => x.lang.startsWith('en-GB')); if (v) return v;
+  v = list.find(x => x.lang.startsWith('en')); if (v) return v;
+  return null;
+}
 
-  function wake() { if (!window.speechSynthesis) return; try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(''); u.volume = 0; window.speechSynthesis.speak(u); } catch (e) {} }
-  function keep() { if (!window.speechSynthesis || speaking) return; try { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } catch (e) {} }
-  document.getElementById('input').addEventListener('pointerdown', () => wake()); document.getElementById('input').addEventListener('keydown', () => wake());
-  document.getElementById('send-btn').addEventListener('pointerdown', () => wake()); document.getElementById('voice-btn').addEventListener('pointerdown', () => wake());
-  document.getElementById('tts-toggle').addEventListener('pointerdown', () => wake()); document.getElementById('reset-btn').addEventListener('pointerdown', () => wake());
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && window.speechSynthesis) window.speechSynthesis.cancel(); });
-  setInterval(keep, 10000);
-
-  function speak(text) {
-    if (!tts || !window.speechSynthesis) return;
+function wakeUpSpeech() {
+  if (!window.speechSynthesis) return;
+  try {
     window.speechSynthesis.cancel();
-    const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
-    let idx = 0;
-    const tone = analyzeTone(text);
-    if (tone !== 'neutral') setExpr(tone, 3000);
-    function next() {
-      if (idx >= parts.length) { setSpeak(false); return; }
-      const u = new SpeechSynthesisUtterance(parts[idx].trim());
-      u.rate = 0.88; u.pitch = 1.1;
-      const v = findV(); if (v) u.voice = v;
-      u.onstart = () => setSpeak(true);
-      u.onend = () => { idx++; const p = parts[idx - 1].trim(); setTimeout(next, /[,;:]$/.test(p) ? 250 : /[.!?]$/.test(p) ? 400 : 150); };
-      u.onerror = () => { idx++; setTimeout(next, 100); };
-      window.speechSynthesis.speak(u);
-    }
-    next();
-  }
+    const u = new SpeechSynthesisUtterance('');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function keepSpeechAlive() {
+  if (!window.speechSynthesis || isSpeaking) return;
+  try { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } catch (e) {}
+}
+document.getElementById('input').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('input').addEventListener('keydown', () => wakeUpSpeech());
+document.getElementById('send-btn').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('voice-btn').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('tts-toggle').addEventListener('pointerdown', () => wakeUpSpeech());
+document.getElementById('reset-btn').addEventListener('pointerdown', () => wakeUpSpeech());
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && window.speechSynthesis) window.speechSynthesis.cancel();
+});
+setInterval(keepSpeechAlive, 10000);
+function speak(text) {
+  if (!ttsEnabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+  let idx = 0;
+  let voiceInfo = null;
 
-  function save() {
-    localStorage.setItem('mm_history', JSON.stringify(history));
-    return fetch('/api/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, history }) }).catch(() => {});
+  function speakNext() {
+    if (idx >= parts.length) { setSpeaking(false); return; }
+    const u = new SpeechSynthesisUtterance(parts[idx].trim());
+    u.rate = 0.88;
+    u.pitch = 1.25 + (Math.sin(idx * 1.7) * 0.06);
+    const voice = findVoice();
+    if (voice) { u.voice = voice; if (!voiceInfo) voiceInfo = voice.name + ' ' + voice.lang; }
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => {
+      idx++;
+      const p = parts[idx - 1].trim();
+      const pause = /[,;:]$/.test(p) ? 180 : /[.!?]$/.test(p) ? 350 : 100;
+      setTimeout(speakNext, pause);
+    };
+    u.onerror = (e) => {
+      console.error('Speech error:', e.error);
+      idx++;
+      setTimeout(speakNext, 100);
+    };
+    window.speechSynthesis.speak(u);
   }
+  speakNext();
+  if (voiceInfo) console.log('Alf-I voice:', voiceInfo);
+  else console.log('Alf-I voice: default');
+}
 
-  async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    if (text.toUpperCase() === 'EXPORT') {
-      const enc = btoa(unescape(encodeURIComponent(JSON.stringify(history))));
-      try { await navigator.clipboard.writeText('MEMORY:' + enc); } catch (e) { input.value = 'MEMORY:' + enc; input.select(); }
-      return;
-    }
-    const mm = text.match(/^MEMORY:(.+)/i);
-    if (mm) {
-      try { const d = JSON.parse(decodeURIComponent(escape(atob(mm[1].trim())))); if (Array.isArray(d) && d.length) { history = d; save(); } } catch (e) {}
-      return;
-    }
-    startThink();
-    history.push({ role: 'user', content: text });
-    save();
+function saveHistory() {
+  localStorage.setItem('alfi_history', JSON.stringify(history));
+  console.log('Saving', history.length, 'messages for user', userId.slice(0, 8) + '...');
+  return fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, history: history })
+  }).catch(() => {});
+}
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  if (text.toUpperCase() === 'EXPORT') {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(history))));
+    const full = 'MEMORY:' + encoded;
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history }) });
-      const d = await res.json();
-      stopThink();
-      if (d.error) return;
-      history.push({ role: 'assistant', content: d.content });
-      save();
-      happyReact();
-      setTimeout(() => speak(d.content), 350);
-    } catch (e) { stopThink(); }
+      await navigator.clipboard.writeText(full);
+      setStatus('COPIED');
+    } catch (e) {
+      input.value = full;
+      input.select();
+      setStatus('COPY MANUALLY');
+    }
+    return;
   }
 
-  function resetConversation() {
-    if (!confirm('Reset the timeline?')) return;
-    history = []; localStorage.removeItem('mm_history'); save(); window.speechSynthesis.cancel(); setSpeak(false); input.focus();
+  const memMatch = text.match(/^MEMORY:(.+)/i);
+  if (memMatch) {
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(memMatch[1].trim()))));
+      if (Array.isArray(decoded) && decoded.length) {
+        history = decoded;
+        saveHistory();
+        setStatus('RESTORED');
+      } else {
+        setStatus('EMPTY');
+      }
+    } catch (e) {
+      setStatus('INVALID');
+    }
+    return;
   }
-  input.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+  setStatus('...');
+  startThinking();
+
+  history.push({ role: 'user', content: text });
+  saveHistory();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
+    });
+    const data = await res.json();
+    stopThinking();
+
+    if (data.error) { setStatus('ERR: ' + data.error.slice(0, 60)); return; }
+
+    history.push({ role: 'assistant', content: data.content });
+    saveHistory();
+    setStatus('READY');
+    happyReaction();
+    setTimeout(() => speak(data.content), 300);
+  } catch (e) {
+    stopThinking();
+    setStatus('CONNECTION ERROR');
+  }
+}
+
+function resetConversation() {
+  if (!confirm('Are you sure you want to reset the conversation? This will clear all history.')) return;
+  history = [];
+  localStorage.removeItem('alfi_history');
+  saveHistory();
+  window.speechSynthesis.cancel();
+  setSpeaking(false);
+  setStatus('READY');
+  input.focus();
+}
+
+input.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
 </script>
 </body>
 </html>
