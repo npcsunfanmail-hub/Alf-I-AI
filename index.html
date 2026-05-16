@@ -312,11 +312,11 @@
   function findV() {
     const list = window.speechSynthesis.getVoices().length ? window.speechSynthesis.getVoices() : vc;
     if (!list.length) return null;
-    const so = list.filter(v => /southern|carol|ashley|emma|ava|samantha|zoe|karen|fiona|tessa|moira/i.test(v.name) && v.lang.startsWith('en'));
+    const so = list.filter(v => /southern|siri|carol|ashley|ava|emma|samantha/i.test(v.name) && v.lang.startsWith('en'));
     if (so.length) return so[0];
-    const fu = list.filter(v => /female|zoe|vanessa|karen|fiona|catherine|serena|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|aria|jenny/i.test(v.name) && v.lang.startsWith('en-US'));
+    const fu = list.filter(v => /female|zoe|vanessa|karen|fiona|catherine|serena|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|aria|jenny|susan|martha|nora|mila|sally|alice|lina/i.test(v.name) && v.lang.startsWith('en-US'));
     if (fu.length) return fu[0];
-    const fe = list.filter(v => /female|zoe|vanessa|karen|fiona|catherine|serena|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|aria|jenny/i.test(v.name) && v.lang.startsWith('en'));
+    const fe = list.filter(v => /female|zoe|vanessa|karen|fiona|catherine|serena|samantha|victoria|tessa|ava|zira|hazel|heather|helen|jessa|linda|rosa|aria|jenny|susan|martha|nora|mila|sally|alice|lina/i.test(v.name) && v.lang.startsWith('en'));
     if (fe.length) return fe[0];
     const en = list.filter(v => v.lang.startsWith('en'));
     return en.length ? en[0] : null;
@@ -340,7 +340,7 @@
     function next() {
       if (idx >= parts.length) { setSpeak(false); return; }
       const u = new SpeechSynthesisUtterance(parts[idx].trim());
-      u.rate = 0.85; u.pitch = 1.3;
+      u.rate = 0.88; u.pitch = 1.1;
       const v = findV(); if (v) u.voice = v;
       u.onstart = () => setSpeak(true);
       u.onend = () => { idx++; const p = parts[idx - 1].trim(); setTimeout(next, /[,;:]$/.test(p) ? 250 : /[.!?]$/.test(p) ? 400 : 150); };
